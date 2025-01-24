@@ -1,3 +1,7 @@
 #include "documentdatainterface.h"
 
-DocumentDataInterface::DocumentDataInterface() {}
+DocumentDataInterface::DocumentDataInterface(QObject *parent) :
+    QObject(parent)
+{
+
+}

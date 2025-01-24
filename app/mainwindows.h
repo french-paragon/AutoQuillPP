@@ -3,7 +3,7 @@
 
 #include <QMainWindow>
 
-class MainWindows : QMainWindow
+class MainWindows : public QMainWindow
 {
     Q_OBJECT
 public:

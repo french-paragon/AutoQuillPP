@@ -5,15 +5,13 @@ set(LIB_SRC
     documenttemplate.cpp
     documentitem.h
     documentitem.cpp
-    documentpage.h
-    documentpage.cpp
+    documentdatainterface.h
+    documentdatainterface.cpp
     documentdatainterface.h
     documentdatainterface.cpp
 )
 
 add_library(${LIB_NAME} ${LIB_SRC}
-    documentpage.h documentpage.cpp
-    documentdatainterface.h documentdatainterface.cpp
 )
 
 target_compile_definitions(${LIB_NAME}
