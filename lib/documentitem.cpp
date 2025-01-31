@@ -1,3 +1,8 @@
 #include "documentitem.h"
 
-DocumentItem::DocumentItem() {}
+DocumentItem::DocumentItem(Type type, QObject *parent) :
+    QObject(parent),
+    _type(type)
+{
+
+}
