@@ -1,5 +1,3 @@
-set(LIB_NAME "lib${PROJECT_NAME}")
-
 set(LIB_SRC
     documenttemplate.h
     documenttemplate.cpp
@@ -9,6 +7,7 @@ set(LIB_SRC
     documentdatainterface.cpp
     documentdatainterface.h
     documentdatainterface.cpp
+	ressources.qrc
 )
 
 add_library(${LIB_NAME} ${LIB_SRC}
@@ -20,8 +19,9 @@ target_compile_definitions(${LIB_NAME}
 target_link_libraries(${LIB_NAME} Qt5::Core)
 target_link_libraries(${LIB_NAME} Qt5::Widgets)
 target_link_libraries(${LIB_NAME} Qt5::Gui)
+target_link_libraries(${LIB_NAME} Qt5::Svg)
 
-add_library(${STEVIAPP_SDK_NAME}::${LIB_NAME} ALIAS ${LIB_NAME})
+add_library(${AUTOQUILL_SDK_NAME}::${LIB_NAME} ALIAS ${LIB_NAME})
 
     target_include_directories(${LIB_NAME} PUBLIC
       $<INSTALL_INTERFACE:include>

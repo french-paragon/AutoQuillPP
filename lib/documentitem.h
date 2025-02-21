@@ -10,37 +10,61 @@ class DocumentItem : public QObject
 public:
 
     enum Type {
-        Frame, //just an empty frame, with possibly a border and a background
+		Frame, //item frame, with possibly a border and a background.
         Text, //a frame containing some text
         Image, //a frame containing an image
         Page, //a page
         Condition, //a block containing other blocks based on a condition
         List, //a list of items, laid out in a certain direction
         Loop, //a list of delegate items, based on array data and laid out in a certain direction
-        Plugin
-    };
+		Plugin, //a datablock pointing to a plugin for rendering
+		Invalid //invalid type
+	};
 
-    Q_ENUM(Type);
+	static QList<Type> supportedRootTypes();
 
-    enum Direction {
-        Left2Right,
-        Right2Left,
-        Top2Bottom,
-        Bottom2Top
-    };
+	Q_ENUM(Type);
 
-    Q_ENUM(Direction);
+	enum Direction {
+		Left2Right,
+		Right2Left,
+		Top2Bottom,
+		Bottom2Top
+	};
 
-    static QString typeToString(Type const& type);
+	Q_ENUM(Direction);
+
+	enum OverflowBehavior {
+		DrawFirstInstanceOnly,
+		CopyFirst,
+		OverflowOnNewPage
+	};
+
+	Q_ENUM(OverflowBehavior);
+
+	static QIcon iconForType(Type const& type);
+	static QString typeToString(Type const& type);
     static Type stringToType(QString const& str);
+	static inline bool typeAcceptChildrens(Type const& type) {
+		switch (type) {
+		case Frame:
+		case Page:
+		case Condition:
+		case List:
+		case Loop:
+			return true;
+		default:
+			return false;
+		}
+	}
 
     Q_PROPERTY(Direction direction READ direction WRITE setDirection NOTIFY directionChanged);
 
     Q_PROPERTY(qreal posX READ posX WRITE setPosX NOTIFY posXChanged)
     Q_PROPERTY(qreal posY READ posY WRITE setPosY NOTIFY posYChanged)
 
-    Q_PROPERTY(qreal width READ width WRITE setWidth NOTIFY widthChanged)
-    Q_PROPERTY(qreal height READ height WRITE setHeight NOTIFY heightChanged)
+	Q_PROPERTY(qreal initialWidth READ initialWidth WRITE setInitialWidth NOTIFY initialWidthChanged)
+	Q_PROPERTY(qreal height READ initialHeight WRITE setInitialHeight NOTIFY initialHeightChanged)
 
     Q_PROPERTY(qreal maxWidth READ maxWidth WRITE setMaxWidth NOTIFY maxWidthChanged)
     Q_PROPERTY(qreal maxHeight READ maxHeight WRITE setMaxHeight NOTIFY maxHeightChanged)
@@ -70,6 +94,17 @@ public:
         }
     }
 
+	inline OverflowBehavior overflowBehavior() const {
+		return _overflowBehavior;
+	}
+
+	inline void setOverflowBehavior(OverflowBehavior overflowBehavior) {
+		if (overflowBehavior != _overflowBehavior) {
+			_overflowBehavior = overflowBehavior;
+			Q_EMIT overflowBehaviorChanged();
+		}
+	}
+
     inline qreal posX() const {
         return _pos_x;
     }
@@ -93,25 +128,25 @@ public:
     }
 
 
-    inline qreal width() const {
-        return _width;
+	inline qreal initialWidth() const {
+		return _initial_width;
     }
 
-    inline qreal height() const {
-        return _height;
+	inline qreal initialHeight() const {
+		return _initial_height;
     }
 
-    inline void setWidth(qreal width) {
-        if (_width != width) {
-            _width = width;
-            Q_EMIT widthChanged();
+	inline void setInitialWidth(qreal width) {
+		if (_initial_width != width) {
+			_initial_width = width;
+			Q_EMIT initialWidthChanged();
         }
     }
 
-    inline void setHeight(qreal height) {
-        if (_height != height) {
-            _height = height;
-            Q_EMIT heightChanged();
+	inline void setInitialHeight(qreal height) {
+		if (_initial_height != height) {
+			_initial_height = height;
+			Q_EMIT initialHeightChanged();
         }
     }
 
@@ -190,17 +225,63 @@ public:
             _data = key;
             Q_EMIT dataChanged();
         }
-    }
+	}
+
+	inline bool removeSubItem(int index) {
+		if (index < 0 or index >= _items.size()) {
+			return false;
+		}
+
+		_items.removeAt(index);
+		return true;
+	}
+
+	inline bool moveSubItem(int previousIndex, int newIndex) {
+		if (previousIndex < 0 or newIndex < 0 or previousIndex >= _items.size() or newIndex >= _items.size()) {
+			return false;
+		}
+
+		_items.move(previousIndex, newIndex);
+		return true;
+	}
+
+	inline DocumentItem* parentDocumentItem() {
+		return qobject_cast<DocumentItem*>(parent());
+	}
+
+	inline void insertSubItem(DocumentItem* item, int position = -1) {
+
+		item->setParent(this);
+
+		if (position < 0) {
+			_items.insert((_items.size()+1+position)%(_items.size()+1), item);
+			return;
+		}
+
+		if (position >= _items.size()) {
+			_items.insert(_items.size(), item);
+			return;
+		}
+
+		_items.insert(position, item);
+	}
+
+	inline QList<DocumentItem*> const& subitems() const {
+		return _items;
+	}
+
+	QList<Type> supportedSubTypes();
 
 Q_SIGNALS:
 
     void directionChanged();
+	void overflowBehaviorChanged();
 
     void posXChanged();
     void posYChanged();
 
-    void widthChanged();
-    void heightChanged();
+	void initialWidthChanged();
+	void initialHeightChanged();
 
     void maxWidthChanged();
     void maxHeightChanged();
@@ -213,19 +294,20 @@ Q_SIGNALS:
     void anchorChanged();
 
     void datakeyChanged();
-    void dataChanged();
+	void dataChanged();
 
 protected:
 
     Type _type;
 
     Direction _direction;
+	OverflowBehavior _overflowBehavior;
 
     qreal _pos_x;
     qreal _pos_y;
 
-    qreal _width;
-    qreal _height;
+	qreal _initial_width;
+	qreal _initial_height;
 
     qreal _max_width;
     qreal _max_height;
@@ -237,6 +319,8 @@ protected:
 
     QString _data_key;
     QString _data;
+
+	QList<DocumentItem*> _items;
 };
 
 #endif // DOCUMENTITEM_H

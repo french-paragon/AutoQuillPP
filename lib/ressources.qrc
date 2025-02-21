@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/text.svg</file>
+        <file>icons/frame.svg</file>
+        <file>icons/image.svg</file>
+        <file>icons/page.svg</file>
+        <file>icons/condition.svg</file>
+        <file>icons/list.svg</file>
+        <file>icons/plugin.svg</file>
+        <file>icons/loop.svg</file>
+    </qresource>
+</RCC>

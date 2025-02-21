@@ -23,15 +23,18 @@ set(CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
 set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
-set(STEVIAPP_SDK_NAME "AutoQuillPPSdk")
-set(STEVIAPP_SDK_EXPORTNAME "AutoQuillPPSdkTargets")
+set(AUTOQUILL_SDK_NAME "AutoQuillPPSdk")
+set(AUTOQUILL_SDK_EXPORTNAME "AutoQuillPPSdkTargets")
 
 #find usefull libraries
-find_package(Qt5 COMPONENTS Widgets Core Test PrintSupport REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Core Test PrintSupport Svg REQUIRED)
 
 #configure some variables
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
+
+set(LIB_NAME "lib${PROJECT_NAME}")
+set(PROG_NAME "${PROJECT_NAME}")
 
 #configure library
 add_subdirectory(lib)
