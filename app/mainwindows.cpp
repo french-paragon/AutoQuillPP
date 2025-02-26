@@ -20,10 +20,15 @@
 #include "../lib/documentitem.h"
 #include "../lib/documenttemplate.h"
 
+#include "documentpreviewwidget.h"
+
 MainWindows::MainWindows(QWidget *parent) :
-    QMainWindow(parent)
+	QMainWindow(parent),
+	_currentDocumentTemplate(nullptr)
 {
-	_currentDocumentTemplate = new DocumentTemplate(this);
+	DocumentTemplate* documentTemplate = new DocumentTemplate(this);
+
+	//setup dockers
 
 	_projectTreeDockWidget = new QDockWidget(tr("Project tree"), this);
 	_projectTreeDockWidget->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
@@ -40,6 +45,7 @@ MainWindows::MainWindows(QWidget *parent) :
 
 	connect(_projectTreeViewWidget, &QTreeView::clicked, this, &MainWindows::refreshNewItemMenu);
 	connect(_projectTreeViewWidget, &QTreeView::clicked, this, &MainWindows::refreshPropertiesWidget);
+	connect(_projectTreeViewWidget, &QTreeView::clicked, this, &MainWindows::viewItemPage);
 
 	projectTreeDockWidgetLayout->addWidget(_projectTreeViewWidget);
 
@@ -65,7 +71,15 @@ MainWindows::MainWindows(QWidget *parent) :
 	_documentTemplateModel = new DocumentTemplateModel(this);
 	_projectTreeViewWidget->setModel(_documentTemplateModel);
 
-	setCurrentDocumentTemplate(_currentDocumentTemplate);
+	//setup main widgets
+
+	_docPreviewWidget = new DocumentPreviewWidget(this);
+
+	setCentralWidget(_docPreviewWidget);
+
+	//register the documentTemplate
+	setCurrentDocumentTemplate(documentTemplate);
+
 }
 
 
@@ -75,10 +89,12 @@ DocumentTemplate* MainWindows::currentDocumentTemplate() const {
 
 void MainWindows::setCurrentDocumentTemplate(DocumentTemplate* docTemplate) {
 
-	_documentTemplateModel->setDocumentTemplate(docTemplate);
-
 	if (_currentDocumentTemplate != docTemplate) {
+
 		_currentDocumentTemplate = docTemplate;
+
+		_documentTemplateModel->setDocumentTemplate(docTemplate);
+		_docPreviewWidget->setDocumentTemplate(docTemplate);
 	}
 }
 
@@ -300,5 +316,26 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
+
+}
+
+void MainWindows::viewItemPage(QModelIndex const& clickedIdx) {
+
+	if (!clickedIdx.isValid()) {
+		return;
+	}
+
+	bool ok;
+	int pageId = clickedIdx.data(DocumentTemplateModel::ItemPageRole).toInt(&ok);
+
+	if (!ok) {
+		return;
+	}
+
+	if (pageId < 0) {
+		return;
+	}
+
+	_docPreviewWidget->gotoPage(pageId);
 
 }

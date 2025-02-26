@@ -108,6 +108,10 @@ QModelIndex DocumentTemplateModel::parent(const QModelIndex &index) const {
 
 int DocumentTemplateModel::rowCount(const QModelIndex &parent) const {
 
+	if (_root == nullptr) {
+		return 0;
+	}
+
 	if (parent == QModelIndex()) {
 		return _root->children().size();
 	}
@@ -156,10 +160,14 @@ QVariant DocumentTemplateModel::data(const QModelIndex &index, int role) const {
 			return QIcon(":/icons/loop.svg");
 		case DocumentItem::Plugin:
 			return QIcon(":/icons/plugin.svg");
+		case DocumentItem::Invalid:
+			return QVariant();
 		};
 		break;
 	case Qt::EditRole:
 		return target->objectName();
+	case ItemPageRole:
+		return target->pageId();
 	}
 
 	return QVariant();
@@ -218,6 +226,10 @@ QModelIndex DocumentTemplateModel::indexFromItem(DocumentItem* item) {
 }
 
 void DocumentTemplateModel::insertItem(QModelIndex const& parent, int pos, DocumentItem* item) {
+
+	if (_root == nullptr) {
+		return;
+	}
 
 	DocumentItem* target = nullptr;
 

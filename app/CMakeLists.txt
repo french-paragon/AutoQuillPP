@@ -1,7 +1,9 @@
 set(PROG_SRC
     main.cpp
     mainwindows.h
-    mainwindows.cpp)
+	mainwindows.cpp
+	documentpreviewwidget.h
+	documentpreviewwidget.cpp)
 
 add_executable(${PROG_NAME} ${PROG_SRC}
     main.cpp)

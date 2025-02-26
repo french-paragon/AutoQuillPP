@@ -1,4 +1,5 @@
 #include "documentitem.h"
+#include "documenttemplate.h"
 
 #include <QIcon>
 
@@ -85,6 +86,28 @@ DocumentItem::Type DocumentItem::stringToType(QString const& str) {
 
 QList<DocumentItem::Type> DocumentItem::supportedRootTypes() {
 	return {Loop, Condition, Page}; //at the root level we can have a page, some conditional pages or a loop of pages
+}
+
+int DocumentItem::pageId() {
+	QObject* p = parent();
+
+	if (p == nullptr) {
+		return -1;
+	}
+
+	DocumentTemplate* docTemplate = qobject_cast<DocumentTemplate*>(p);
+
+	if (docTemplate != nullptr) {
+		return docTemplate->subitems().indexOf(this);
+	}
+
+	DocumentItem* docItem = qobject_cast<DocumentItem*>(p);
+
+	if (docItem != nullptr) {
+		return docItem->pageId();
+	}
+
+	return -1;
 }
 
 QList<DocumentItem::Type> DocumentItem::supportedSubTypes() {

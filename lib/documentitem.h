@@ -270,6 +270,8 @@ public:
 		return _items;
 	}
 
+	int pageId();
+
 	QList<Type> supportedSubTypes();
 
 Q_SIGNALS:

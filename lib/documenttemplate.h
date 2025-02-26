@@ -31,7 +31,8 @@ class DocumentTemplateModel : public QAbstractItemModel {
 public:
 
 	enum SpecialRoles {
-		ItemRole = Qt::UserRole+1
+		ItemRole = Qt::UserRole+1,
+		ItemPageRole = Qt::UserRole+2
 	};
 
 	explicit DocumentTemplateModel(QObject* parent = nullptr);

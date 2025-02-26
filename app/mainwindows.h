@@ -7,6 +7,8 @@
 class DocumentTemplate;
 class DocumentTemplateModel;
 
+class DocumentPreviewWidget;
+
 class QDockWidget;
 class QTreeView;
 class QPushButton;
@@ -34,11 +36,15 @@ protected:
 
 	void refreshPropertiesWidget();
 
+	void viewItemPage(QModelIndex const& clickedIdx);
+
 	QDockWidget* _projectTreeDockWidget;
 	QTreeView* _projectTreeViewWidget;
 	QPushButton* _newItemButton;
 
 	QDockWidget* _itemPropertiesDockWidget;
+
+	DocumentPreviewWidget* _docPreviewWidget;
 
 	DocumentTemplate* _currentDocumentTemplate;
 	DocumentTemplateModel* _documentTemplateModel;
