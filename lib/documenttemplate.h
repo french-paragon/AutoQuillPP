@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QAbstractItemModel>
 
+#include <QJsonValue>
+
 class DocumentItem;
 
 class DocumentTemplate : public QObject
@@ -21,9 +23,25 @@ public:
 		return _items;
 	}
 
+    QJsonValue encapsulateToJson() const;
+
+    bool saveTo(QString const& path);
+
+    inline QString currentSavePath() const {
+        return _currentSavePath;
+    }
+
+    inline void setCurrentSavePath(QString const& path) {
+        if (path != _currentSavePath) {
+            _currentSavePath = path;
+        }
+    }
+
 protected:
 
 	QList<DocumentItem*> _items;
+
+    QString _currentSavePath;
 };
 
 class DocumentTemplateModel : public QAbstractItemModel {

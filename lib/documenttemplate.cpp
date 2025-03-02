@@ -4,8 +4,14 @@
 
 #include <QIcon>
 
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QFile>
+
 DocumentTemplate::DocumentTemplate(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    _currentSavePath("")
 {
 
 }
@@ -43,6 +49,51 @@ void DocumentTemplate::insertSubItem(DocumentItem* item, int position) {
 	}
 
 	_items.insert(position, item);
+}
+
+QJsonValue DocumentTemplate::encapsulateToJson() const {
+
+    QJsonArray blocks;
+
+    for (DocumentItem* item : _items) {
+        if (item == nullptr) {
+            continue;
+        }
+
+        blocks.push_back(item->encapsulateToJson());
+    }
+
+    return blocks;
+}
+
+bool DocumentTemplate::saveTo(QString const& path) {
+
+    QJsonValue val = encapsulateToJson();
+
+    QJsonDocument doc;
+    if (val.isObject()) {
+        doc.setObject(val.toObject());
+    } else if (val.isArray()) {
+        doc.setArray(val.toArray());
+    }
+
+    QByteArray datas = doc.toJson();
+
+    QFile out(path);
+
+    if(!out.open(QIODevice::WriteOnly)){
+        return false;
+    }
+
+    qint64 w_stat = out.write(datas);
+    out.close();
+
+    if(w_stat < 0){
+        return false;
+    }
+
+    return true;
+
 }
 
 DocumentTemplateModel::DocumentTemplateModel(QObject* parent) :

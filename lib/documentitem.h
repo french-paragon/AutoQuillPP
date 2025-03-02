@@ -274,6 +274,8 @@ public:
 
 	QList<Type> supportedSubTypes();
 
+    QJsonValue encapsulateToJson() const;
+
 Q_SIGNALS:
 
     void directionChanged();

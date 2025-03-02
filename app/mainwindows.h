@@ -38,6 +38,9 @@ protected:
 
 	void viewItemPage(QModelIndex const& clickedIdx);
 
+    void saveProject();
+    void saveProjectAs();
+
 	QDockWidget* _projectTreeDockWidget;
 	QTreeView* _projectTreeViewWidget;
 	QPushButton* _newItemButton;
@@ -47,7 +50,7 @@ protected:
 	DocumentPreviewWidget* _docPreviewWidget;
 
 	DocumentTemplate* _currentDocumentTemplate;
-	DocumentTemplateModel* _documentTemplateModel;
+    DocumentTemplateModel* _documentTemplateModel;
 };
 
 #endif // MAINWINDOWS_H

@@ -3,6 +3,12 @@
 
 #include <QIcon>
 
+#include <QJsonObject>
+#include <QJsonArray>
+
+#include <QMetaObject>
+#include <QMetaProperty>
+
 DocumentItem::DocumentItem(Type type, QObject *parent) :
     QObject(parent),
     _type(type)
@@ -145,4 +151,50 @@ QList<DocumentItem::Type> DocumentItem::supportedSubTypes() {
 	}
 
 	return {};
+}
+
+
+QJsonValue DocumentItem::encapsulateToJson() const {
+
+    QJsonObject obj;
+
+    const QMetaObject* mobj = metaObject();
+
+    for (int i = 0; i < mobj->propertyCount(); i++) {
+
+        if (!mobj->property(i).isStored(this)) {
+            continue;
+        }
+
+        const char* prop = mobj->property(i).name();
+
+        if (QString(prop) == "subitens") {
+            continue; //reserved for subblocks
+        }
+
+        QVariant val = property(prop);
+
+        if (val.type() == QVariant::Color) {
+            QColor col = val.value<QColor>();
+            QString str = col.name(QColor::HexArgb);
+            obj.insert(prop, str);
+        } else {
+            obj.insert(prop, QJsonValue::fromVariant(val));
+        }
+    }
+
+    QJsonArray blocks;
+
+    for (DocumentItem* item : _items) {
+        if (item == nullptr) {
+            continue;
+        }
+
+        blocks.push_back(item->encapsulateToJson());
+    }
+
+    obj.insert("subitens", blocks);
+
+    return obj;
+
 }

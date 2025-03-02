@@ -16,6 +16,14 @@
 #include <QLabel>
 #include <QGroupBox>
 #include <QScrollArea>
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QJsonDocument>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QMenuBar>
+#include <QMenu>
 
 #include "../lib/documentitem.h"
 #include "../lib/documenttemplate.h"
@@ -27,6 +35,18 @@ MainWindows::MainWindows(QWidget *parent) :
 	_currentDocumentTemplate(nullptr)
 {
 	DocumentTemplate* documentTemplate = new DocumentTemplate(this);
+
+    //setup menu
+
+    QMenu* fileMenu = menuBar()->addMenu(tr("file"));
+    QAction* saveAction = fileMenu->addAction(tr("save"));
+    QAction* saveAsAction = fileMenu->addAction(tr("save as"));
+
+    saveAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_S));
+    saveAsAction->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_S));
+
+    connect(saveAction, &QAction::triggered, this, &MainWindows::saveProject);
+    connect(saveAsAction, &QAction::triggered, this, &MainWindows::saveProjectAs);
 
 	//setup dockers
 
@@ -338,4 +358,40 @@ void MainWindows::viewItemPage(QModelIndex const& clickedIdx) {
 
 	_docPreviewWidget->gotoPage(pageId);
 
+}
+
+void MainWindows::saveProject() {
+
+    if (_currentDocumentTemplate == nullptr) {
+        return;
+    }
+
+    if (!_currentDocumentTemplate->currentSavePath().isEmpty()) {
+        bool ok = _currentDocumentTemplate->saveTo(_currentDocumentTemplate->currentSavePath());
+
+        if (ok) {
+            return;
+        }
+    }
+
+    saveProjectAs();
+}
+void MainWindows::saveProjectAs() {
+
+    if (_currentDocumentTemplate == nullptr) {
+        return;
+    }
+
+    QString filePath =
+        QFileDialog::getSaveFileName(this,
+                                    tr("Save template as"),
+                                    QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    _currentDocumentTemplate->setCurrentSavePath(filePath);
+
+    _currentDocumentTemplate->saveTo(_currentDocumentTemplate->currentSavePath());
 }
