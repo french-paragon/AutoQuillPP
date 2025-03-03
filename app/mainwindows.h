@@ -38,8 +38,9 @@ protected:
 
 	void viewItemPage(QModelIndex const& clickedIdx);
 
-    void saveProject();
-    void saveProjectAs();
+	void saveProject();
+	void saveProjectAs();
+	void openProject();
 
 	QDockWidget* _projectTreeDockWidget;
 	QTreeView* _projectTreeViewWidget;

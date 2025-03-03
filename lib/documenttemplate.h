@@ -24,8 +24,10 @@ public:
 	}
 
     QJsonValue encapsulateToJson() const;
+	bool configureFromJson(QJsonValue const& value);
 
-    bool saveTo(QString const& path);
+	bool saveTo(QString const& path);
+	bool loadFrom(QString const& path);
 
     inline QString currentSavePath() const {
         return _currentSavePath;
@@ -36,6 +38,11 @@ public:
             _currentSavePath = path;
         }
     }
+
+Q_SIGNALS:
+
+	void aboutToBeReset();
+	void reseted();
 
 protected:
 

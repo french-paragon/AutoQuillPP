@@ -158,6 +158,8 @@ QJsonValue DocumentItem::encapsulateToJson() const {
 
     QJsonObject obj;
 
+	obj.insert("type", typeToString(_type));
+
     const QMetaObject* mobj = metaObject();
 
     for (int i = 0; i < mobj->propertyCount(); i++) {
@@ -168,9 +170,13 @@ QJsonValue DocumentItem::encapsulateToJson() const {
 
         const char* prop = mobj->property(i).name();
 
-        if (QString(prop) == "subitens") {
-            continue; //reserved for subblocks
+		if (QString(prop) == "type") {
+			continue; //reserved for type
         }
+
+		if (QString(prop) == "subitems") {
+			continue; //reserved for subblocks
+		}
 
         QVariant val = property(prop);
 
@@ -193,8 +199,93 @@ QJsonValue DocumentItem::encapsulateToJson() const {
         blocks.push_back(item->encapsulateToJson());
     }
 
-    obj.insert("subitens", blocks);
+	obj.insert("subitems", blocks);
 
     return obj;
 
+}
+
+DocumentItem* DocumentItem::buildFromJson(QJsonValue const& value) {
+
+	if (!value.isObject()) {
+		return nullptr;
+	}
+
+	QJsonObject obj = value.toObject();
+
+	if (!obj.contains("type")) {
+		return nullptr;
+	}
+
+	Type type = stringToType(obj.value("type").toString());
+
+	if (type == Type::Invalid) {
+		return nullptr;
+	}
+
+	DocumentItem* item = new DocumentItem(type);
+
+	const QMetaObject* mobj = item->metaObject();
+
+	for (int i = 0; i < mobj->propertyCount(); i++) {
+
+		if (!mobj->property(i).isStored(item)) {
+			continue;
+		}
+
+		const char* prop = mobj->property(i).name();
+
+		if (QString(prop) == "type") {
+			continue; //reserved for type
+		}
+
+		if (QString(prop) == "subitems") {
+			continue; //reserved for subblocks
+		}
+
+		if (!obj.contains(prop)) {
+			continue;
+		}
+
+		QJsonValue val = obj.value(prop);
+
+		if (mobj->property(i).type() == QVariant::Color) {
+			QColor col = QColor(val.toString());
+			item->setProperty(prop, col);
+		} else if (mobj->property(i).type() == QVariant::Int or
+				   mobj->property(i).type() == QVariant::UInt or
+				   mobj->property(i).type() == QVariant::LongLong or
+				   mobj->property(i).type() == QVariant::ULongLong) {
+			item->setProperty(prop, QVariant(val.toInt()));
+		} else if (mobj->property(i).type() == QVariant::Double) {
+			item->setProperty(prop, QVariant(val.toDouble()));
+		} else {
+			item->setProperty(prop, QVariant(val.toString()));
+		}
+	}
+
+	if (!obj.contains("subitems")) {
+		return item;
+	}
+
+	QJsonValue subitems = obj.value("subitems");
+
+	if (!subitems.isArray()) {
+		return item;
+	}
+
+	QJsonArray array = subitems.toArray();
+
+	for (QJsonValue const& val : qAsConst(array)) {
+
+		DocumentItem* subitem = DocumentItem::buildFromJson(val);
+
+		if (subitem == nullptr) {
+			continue;
+		}
+
+		item->insertSubItem(subitem);
+	}
+
+	return item;
 }

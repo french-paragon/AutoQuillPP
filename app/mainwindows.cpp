@@ -41,12 +41,15 @@ MainWindows::MainWindows(QWidget *parent) :
     QMenu* fileMenu = menuBar()->addMenu(tr("file"));
     QAction* saveAction = fileMenu->addAction(tr("save"));
     QAction* saveAsAction = fileMenu->addAction(tr("save as"));
+	QAction* openAction = fileMenu->addAction(tr("open"));
 
     saveAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_S));
     saveAsAction->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_S));
+	openAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_O));
 
     connect(saveAction, &QAction::triggered, this, &MainWindows::saveProject);
     connect(saveAsAction, &QAction::triggered, this, &MainWindows::saveProjectAs);
+	connect(openAction, &QAction::triggered, this, &MainWindows::openProject);
 
 	//setup dockers
 
@@ -394,4 +397,23 @@ void MainWindows::saveProjectAs() {
     _currentDocumentTemplate->setCurrentSavePath(filePath);
 
     _currentDocumentTemplate->saveTo(_currentDocumentTemplate->currentSavePath());
+}
+void MainWindows::openProject() {
+
+	if (_currentDocumentTemplate == nullptr) {
+		DocumentTemplate* documentTemplate = new DocumentTemplate(this);
+		setCurrentDocumentTemplate(documentTemplate);
+	}
+
+	QString filePath =
+		QFileDialog::getOpenFileName(this,
+									tr("Open template"),
+									QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+
+	if (filePath.isEmpty()) {
+		return;
+	}
+
+	_currentDocumentTemplate->loadFrom(filePath);
+	_currentDocumentTemplate->setCurrentSavePath(filePath);
 }

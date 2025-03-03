@@ -65,6 +65,41 @@ QJsonValue DocumentTemplate::encapsulateToJson() const {
 
     return blocks;
 }
+bool DocumentTemplate::configureFromJson(QJsonValue const& value) {
+	bool status = true;
+	Q_EMIT aboutToBeReset();
+
+	for (DocumentItem* item : qAsConst(_items)) {
+		if (item == nullptr) {
+			continue;
+		}
+
+		disconnect(item, nullptr, this, nullptr); //disconnect everything
+		item->deleteLater();
+	}
+
+	_items.clear();
+
+	if (!value.isArray()) {
+		status = false;
+	} else {
+		QJsonArray array = value.toArray();
+		_items.reserve(array.size());
+
+		for (QJsonValue const& val : qAsConst(array)) {
+			DocumentItem* item = DocumentItem::buildFromJson(val);
+
+			if (item == nullptr) {
+				continue;
+			}
+
+			insertSubItem(item);
+		}
+	}
+
+	Q_EMIT reseted();
+	return status;
+}
 
 bool DocumentTemplate::saveTo(QString const& path) {
 
@@ -94,6 +129,38 @@ bool DocumentTemplate::saveTo(QString const& path) {
 
     return true;
 
+}
+bool DocumentTemplate::loadFrom(QString const& path) {
+
+	QFile file(path);
+
+	if (!file.exists()) {
+		return false;
+	}
+
+	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		return false;
+	}
+
+	QByteArray datas = file.readAll();
+	file.close();
+
+	QJsonParseError errors;
+	QJsonDocument doc = QJsonDocument::fromJson(datas, &errors);
+
+	if(errors.error != QJsonParseError::NoError){
+		return false;
+	}
+
+	QJsonValue val;
+
+	if (doc.isArray()) {
+		val = doc.array();
+	} else if (doc.isObject()) {
+		val = doc.object();
+	}
+
+	return configureFromJson(val);
 }
 
 DocumentTemplateModel::DocumentTemplateModel(QObject* parent) :
@@ -356,7 +423,13 @@ void DocumentTemplateModel::setDocumentTemplate(DocumentTemplate* docTemplate) {
 		return;
 	}
 
+	if (_root != nullptr) {
+		disconnect(_root, nullptr, this, nullptr);
+	}
+
 	beginResetModel();
 	_root = docTemplate;
+	connect(_root, &DocumentTemplate::aboutToBeReset, this, &DocumentTemplateModel::beginResetModel);
+	connect(_root, &DocumentTemplate::reseted, this, &DocumentTemplateModel::endResetModel);
 	endResetModel();
 }

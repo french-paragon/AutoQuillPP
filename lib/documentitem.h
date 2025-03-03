@@ -77,7 +77,7 @@ public:
     Q_PROPERTY(QString dataKey READ dataKey WRITE setDataKey NOTIFY datakeyChanged)
     Q_PROPERTY(QString data READ data WRITE setData NOTIFY dataChanged)
 
-    DocumentItem(Type type, QObject* parent = nullptr);
+	DocumentItem(Type type = Invalid, QObject* parent = nullptr);
 
     inline Type getType() const {
         return _type;
@@ -275,6 +275,7 @@ public:
 	QList<Type> supportedSubTypes();
 
     QJsonValue encapsulateToJson() const;
+	static DocumentItem* buildFromJson(QJsonValue const& value);
 
 Q_SIGNALS:
 
