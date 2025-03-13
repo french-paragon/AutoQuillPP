@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QColor>
+#include <QPoint>
+#include <QSize>
 
 class DocumentItem : public QObject
 {
@@ -73,6 +75,8 @@ public:
     Q_PROPERTY(QColor borderColor READ borderColor WRITE setBorderColor NOTIFY borderColorChanged)
 
     Q_PROPERTY(QColor fillColor READ fillColor WRITE setFillColor NOTIFY fillColorChanged)
+
+	Q_PROPERTY(qreal fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged)
 
     Q_PROPERTY(QString dataKey READ dataKey WRITE setDataKey NOTIFY datakeyChanged)
     Q_PROPERTY(QString data READ data WRITE setData NOTIFY dataChanged)
@@ -205,6 +209,17 @@ public:
         }
     }
 
+	inline qreal fontSize() const {
+		return _font_size;
+	}
+
+	inline void setFontSize(qreal size) {
+		if (_font_size != size) {
+			_font_size = size;
+			Q_EMIT fontSizeChanged();
+		}
+	}
+
     inline QString dataKey() {
         return _data_key;
     }
@@ -272,6 +287,28 @@ public:
 
 	int pageId();
 
+	inline QPointF origin() const {
+		switch(_direction) {
+		case Left2Right:
+			return QPointF(posX(), posY());
+		case Right2Left:
+			return QPointF(posX()+initialWidth(), posY());
+		case Top2Bottom:
+			return QPointF(posX(), posY());
+		case Bottom2Top:
+			return QPointF(posX(), posY()+initialHeight());
+		}
+		return QPointF(posX(), posY());
+	}
+
+	inline QSizeF initialSize() const {
+		return QSizeF(initialWidth(), initialHeight());
+	}
+
+	inline QSizeF maxSize() const {
+		return QSizeF(maxWidth(), maxHeight());
+	}
+
 	QList<Type> supportedSubTypes();
 
     QJsonValue encapsulateToJson() const;
@@ -295,6 +332,8 @@ Q_SIGNALS:
     void borderColorChanged();
 
     void fillColorChanged();
+
+	void fontSizeChanged();
 
     void anchorChanged();
 
@@ -321,6 +360,8 @@ protected:
     QColor _border_color;
 
     QColor _fill_color;
+
+	qreal _font_size;
 
     QString _data_key;
     QString _data;

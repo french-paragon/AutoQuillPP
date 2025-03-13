@@ -11,7 +11,8 @@
 
 DocumentItem::DocumentItem(Type type, QObject *parent) :
     QObject(parent),
-    _type(type)
+	_type(type),
+	_direction(Top2Bottom)
 {
 	if (_type == Page) {
 		_initial_width = 595;

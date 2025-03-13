@@ -10,25 +10,29 @@ class DocumentValue
 {
 public:
     DocumentValue();
-    DocumentValue(std::function<DocumentValue(int)> const& arrayReader);
+	DocumentValue(std::function<DocumentValue(int)> const& arrayReader, int size);
     DocumentValue(std::function<DocumentValue(QString)> const& mapReader);
     DocumentValue(std::function<QVariant()> const& dataReader);
 
     ~DocumentValue();
 
-    explicit operator bool() const {
+	inline explicit operator bool() const {
         return bool(_readerArray) or bool(_readerMap) or bool(_readerData);
     }
 
-    bool hasArray() {
+	inline bool hasArray() const {
         return bool(_readerArray);
     }
 
-    bool hasMap() {
+	inline int arraySize() const {
+		return _arraySize;
+	}
+
+	inline bool hasMap() const {
         return bool(_readerMap);
     }
 
-    bool hasData() {
+	inline bool hasData() const {
         return bool(_readerData);
     }
 
@@ -55,6 +59,7 @@ public:
 
 protected:
     std::function<DocumentValue(int)> _readerArray;
+	int _arraySize;
     std::function<DocumentValue(QString)> _readerMap;
     std::function<QVariant()> _readerData;
 

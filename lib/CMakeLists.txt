@@ -7,6 +7,8 @@ set(LIB_SRC
     documentdatainterface.cpp
     documentdatainterface.h
     documentdatainterface.cpp
+	documentrenderer.h
+	documentrenderer.cpp
 	ressources.qrc
 )
 
