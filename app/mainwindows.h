@@ -41,6 +41,7 @@ protected:
 	void saveProject();
 	void saveProjectAs();
 	void openProject();
+    void exportDocument();
 
 	QDockWidget* _projectTreeDockWidget;
 	QTreeView* _projectTreeViewWidget;

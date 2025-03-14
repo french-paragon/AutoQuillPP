@@ -29,6 +29,7 @@
 #include "../lib/documenttemplate.h"
 
 #include "documentpreviewwidget.h"
+#include "exportactions.h"
 
 MainWindows::MainWindows(QWidget *parent) :
 	QMainWindow(parent),
@@ -41,15 +42,18 @@ MainWindows::MainWindows(QWidget *parent) :
     QMenu* fileMenu = menuBar()->addMenu(tr("file"));
     QAction* saveAction = fileMenu->addAction(tr("save"));
     QAction* saveAsAction = fileMenu->addAction(tr("save as"));
-	QAction* openAction = fileMenu->addAction(tr("open"));
+    QAction* openAction = fileMenu->addAction(tr("open"));
+    QAction* exportAction = fileMenu->addAction(tr("export"));
 
     saveAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_S));
     saveAsAction->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_S));
 	openAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_O));
+    exportAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
 
     connect(saveAction, &QAction::triggered, this, &MainWindows::saveProject);
     connect(saveAsAction, &QAction::triggered, this, &MainWindows::saveProjectAs);
 	connect(openAction, &QAction::triggered, this, &MainWindows::openProject);
+    connect(exportAction, &QAction::triggered, this, &MainWindows::exportDocument);
 
 	//setup dockers
 
@@ -324,8 +328,8 @@ void MainWindows::refreshPropertiesWidget() {
 			maxHeightEdit->setMinimum(0);
 			maxHeightEdit->setMaximum(99999);
 
-			maxWidthEdit->setValue(item->initialWidth());
-			maxHeightEdit->setValue(item->initialHeight());
+            maxWidthEdit->setValue(item->maxWidth());
+            maxHeightEdit->setValue(item->maxHeight());
 
 			connect(maxWidthEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
 					item, &DocumentItem::setMaxWidth);
@@ -338,6 +342,21 @@ void MainWindows::refreshPropertiesWidget() {
 		}
 
 	}
+
+    QLineEdit* dataKeyEditLine = new QLineEdit(widget);
+    QLineEdit* dataEditLine = new QLineEdit(widget);
+
+    dataKeyEditLine->setText(item->dataKey());
+    dataEditLine->setText(item->data());
+
+    connect(dataKeyEditLine, &QLineEdit::textChanged,
+            item, &DocumentItem::setDataKey);
+
+    connect(dataEditLine, &QLineEdit::textChanged,
+            item, &DocumentItem::setData);
+
+    layout->addRow(tr("Data key"), dataKeyEditLine);
+    layout->addRow(tr("Data"), dataEditLine);
 
 
 }
@@ -416,4 +435,10 @@ void MainWindows::openProject() {
 
 	_currentDocumentTemplate->loadFrom(filePath);
 	_currentDocumentTemplate->setCurrentSavePath(filePath);
+}
+
+void MainWindows::exportDocument() {
+
+    exportTemplateUsingJson(_currentDocumentTemplate, this);
+
 }

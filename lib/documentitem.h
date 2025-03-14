@@ -155,11 +155,11 @@ public:
     }
 
     inline qreal maxWidth() const {
-        return _max_width;
+        return std::max(_initial_width,_max_width);
     }
 
     inline qreal maxHeight() const {
-        return _max_height;
+        return std::max(_initial_height,_max_height);
     }
 
     inline void setMaxWidth(qreal width) {

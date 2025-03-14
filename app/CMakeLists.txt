@@ -3,10 +3,13 @@ set(PROG_SRC
     mainwindows.h
 	mainwindows.cpp
 	documentpreviewwidget.h
-	documentpreviewwidget.cpp)
+        documentpreviewwidget.cpp
+        exportactions.h
+        exportactions.cpp)
 
 add_executable(${PROG_NAME} ${PROG_SRC}
-    main.cpp)
+    main.cpp
+    exportactions.h exportactions.cpp)
 
 target_link_libraries(${PROG_NAME} ${LIB_NAME})
 

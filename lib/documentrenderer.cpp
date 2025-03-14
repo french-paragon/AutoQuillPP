@@ -177,19 +177,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(DocumentItem* ite
 			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
 			renderSize.rwidth() += renderStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
+            break;
 		case DocumentItem::Right2Left:
 			_renderContext.origin.rx() -= renderStatus.renderSize.width();
 			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
 			renderSize.rwidth() += renderStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
+            break;
 		case DocumentItem::Top2Bottom:
 			_renderContext.origin.ry() += renderStatus.renderSize.height();
-			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
-			renderSize.rwidth() += std::max(renderSize.height(), renderStatus.renderSize.height());
+            _renderContext.region.rheight() -= renderStatus.renderSize.height();
+            renderSize.rwidth() = std::max(renderSize.width(), renderStatus.renderSize.width());
 			renderSize.rheight() += renderStatus.renderSize.height();
+            break;
 		case DocumentItem::Bottom2Top:
 			renderSize.rwidth() += std::max(renderSize.height(), renderStatus.renderSize.height());
 			renderSize.rheight() += renderStatus.renderSize.height();
+            break;
 		}
 	}
 
@@ -219,11 +223,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(DocumentItem* ite
 
 	RenderingStatus status{Success, ""};
 
-	for (DocumentItem* item : _docTemplate->subitems()) {
+    for (DocumentItem* sitem : item->subitems()) {
 
-		DocumentValue item_val = val.getValue(item->dataKey());
+        DocumentValue item_val = val.getValue(sitem->dataKey());
 
-		RenderingStatus itemStatus = renderItem(item, item_val);
+        RenderingStatus itemStatus = renderItem(sitem, item_val);
 
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
@@ -256,10 +260,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderList(DocumentItem* ite
 
 	int rendered = 0;
 
-	for (DocumentItem* item : _docTemplate->subitems()) {
+    for (DocumentItem* sitem : item->subitems()) {
 
-		DocumentValue item_val = val.getValue(item->dataKey());
-		RenderingStatus renderStatus = renderItem(item->subitems()[0], item_val);
+        DocumentValue item_val = val.getValue(sitem->dataKey());
+        RenderingStatus renderStatus = renderItem(sitem, item_val);
 
 		if (renderStatus.status == MissingSpace) {
 			if (rendered == 0) {
@@ -279,19 +283,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderList(DocumentItem* ite
 			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
 			renderSize.rwidth() += renderStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
+            break;
 		case DocumentItem::Right2Left:
 			_renderContext.origin.rx() -= renderStatus.renderSize.width();
 			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
 			renderSize.rwidth() += renderStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
+            break;
 		case DocumentItem::Top2Bottom:
 			_renderContext.origin.ry() += renderStatus.renderSize.height();
-			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
-			renderSize.rwidth() += std::max(renderSize.height(), renderStatus.renderSize.height());
+            _renderContext.region.rheight() -= renderStatus.renderSize.height();
+            renderSize.rwidth() = std::max(renderSize.width(), renderStatus.renderSize.width());
 			renderSize.rheight() += renderStatus.renderSize.height();
+            break;
 		case DocumentItem::Bottom2Top:
 			renderSize.rwidth() += std::max(renderSize.height(), renderStatus.renderSize.height());
 			renderSize.rheight() += renderStatus.renderSize.height();
+            break;
 		}
 	}
 
@@ -332,11 +340,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(DocumentItem* it
 
 	RenderingStatus status{Success, ""};
 
-	for (DocumentItem* item : _docTemplate->subitems()) {
+    for (DocumentItem* sitem : item->subitems()) {
 
-		DocumentValue item_val = val.getValue(item->dataKey());
+        DocumentValue item_val = val.getValue(sitem->dataKey());
 
-		RenderingStatus itemStatus = renderItem(item, item_val);
+        RenderingStatus itemStatus = renderItem(sitem, item_val);
 
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
@@ -351,6 +359,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(DocumentItem* it
 	}
 
 	status.renderSize = renderSize;
+
+    _renderContext = oldContext;
 
 	return status;
 
@@ -370,7 +380,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(DocumentItem* ite
 
 	if (itemInitialSize.width() > _renderContext.region.width() or
 			itemInitialSize.height() > _renderContext.region.height()) {
-		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Frame: %1").arg(item->objectName())};
+        return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Text: %1").arg(item->objectName())};
 	}
 
 	QVariant variant = val.getValue();
@@ -413,5 +423,61 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(DocumentItem* ite
 
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(DocumentItem* item, DocumentValue const& val) {
+
+    if (item == nullptr) {
+        return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
+    }
+
+    if (_painter == nullptr) {
+        return RenderingStatus{OtherError, QObject::tr("Invalid painter used for rendering!")};
+    }
+
+    QSizeF itemInitialSize = item->initialSize();
+
+    if (itemInitialSize.width() > _renderContext.region.width() or
+        itemInitialSize.height() > _renderContext.region.height()) {
+        return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Image: %1").arg(item->objectName())};
+    }
+
+    QVariant variant = val.getValue();
+    QImage image;
+
+    if (variant.isValid()) {
+        if (variant.canConvert<QImage>()) {
+            image = qvariant_cast<QImage>(variant);
+        } else if (variant.canConvert<QString>()) {
+            image = QImage(variant.toString());
+        }
+    } else {
+        image = QImage(item->data());
+    }
+
+    if (image.isNull()) {
+        return RenderingStatus{MissingData, QObject::tr("Not enough space to render Image: %1").arg(item->objectName())};
+    }
+
+    QPointF origin = _renderContext.origin + item->origin();
+
+    if (_renderContext.direction == DocumentItem::Right2Left) {
+        origin.rx() = _renderContext.origin.x() - item->origin().x();
+    }
+
+    if (_renderContext.direction == DocumentItem::Bottom2Top) {
+        origin.ry() = _renderContext.origin.y() - item->origin().y();
+    }
+
+    QSizeF renderSize(item->initialSize());
+
+    QFont font = _painter->font();
+    font.setPointSizeF(item->fontSize());
+    _painter->setFont(font);
+
+    QRectF rectangle = QRectF(origin, renderSize);
+    QRectF boundingRect;
+    _painter->drawImage(rectangle, image);
+
+    RenderingStatus status{Success, "", rectangle.size()};
+
+    return status;
 
 }

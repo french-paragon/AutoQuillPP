@@ -7,9 +7,11 @@ set(LIB_SRC
     documentdatainterface.cpp
     documentdatainterface.h
     documentdatainterface.cpp
-	documentrenderer.h
-	documentrenderer.cpp
-	ressources.qrc
+    jsondocumentdatainterface.h
+    jsondocumentdatainterface.cpp
+    documentrenderer.h
+    documentrenderer.cpp
+    ressources.qrc
 )
 
 add_library(${LIB_NAME} ${LIB_SRC}
