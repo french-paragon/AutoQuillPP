@@ -179,6 +179,10 @@ QJsonValue DocumentItem::encapsulateToJson() const {
 			continue; //reserved for subblocks
 		}
 
+        if (!propertyIsStoredForCurrentType(prop)) {
+            continue;
+        }
+
         QVariant val = property(prop);
 
         if (val.type() == QVariant::Color) {
@@ -204,6 +208,51 @@ QJsonValue DocumentItem::encapsulateToJson() const {
 
     return obj;
 
+}
+
+
+bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
+
+    QString pName(propName);
+
+    switch(_type) {
+    case Invalid:
+        return false;
+    case Page:
+        if (pName == "posX" or
+            pName == "posY" or
+            pName == "maxWidth" or
+            pName == "maxHeight" or
+            pName == "fontSize") {
+            return false;
+        }
+        break;
+    case Condition:
+        if (pName == "posX" or
+            pName == "posY" or
+            pName == "initialWidth" or
+            pName == "initialHeight" or
+            pName == "maxWidth" or
+            pName == "maxHeight" or
+            pName == "borderWidth" or
+            pName == "borderColor" or
+            pName == "fillColor" or
+            pName == "fontSize") {
+            return false;
+        }
+    case Loop:
+    case List:
+    case Plugin:
+    case Image:
+    case Frame:
+        if (pName == "fontSize") {
+            return false;
+        }
+    default:
+        break;
+    };
+
+    return true;
 }
 
 DocumentItem* DocumentItem::buildFromJson(QJsonValue const& value) {

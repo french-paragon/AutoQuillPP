@@ -66,7 +66,7 @@ public:
     Q_PROPERTY(qreal posY READ posY WRITE setPosY NOTIFY posYChanged)
 
 	Q_PROPERTY(qreal initialWidth READ initialWidth WRITE setInitialWidth NOTIFY initialWidthChanged)
-	Q_PROPERTY(qreal height READ initialHeight WRITE setInitialHeight NOTIFY initialHeightChanged)
+    Q_PROPERTY(qreal initialHeight READ initialHeight WRITE setInitialHeight NOTIFY initialHeightChanged)
 
     Q_PROPERTY(qreal maxWidth READ maxWidth WRITE setMaxWidth NOTIFY maxWidthChanged)
     Q_PROPERTY(qreal maxHeight READ maxHeight WRITE setMaxHeight NOTIFY maxHeightChanged)
@@ -341,6 +341,8 @@ Q_SIGNALS:
 	void dataChanged();
 
 protected:
+
+    bool propertyIsStoredForCurrentType(const char* propName) const;
 
     Type _type;
 
