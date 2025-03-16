@@ -25,6 +25,10 @@ DocumentItem::DocumentItem(Type type, QObject *parent) :
 		_max_width = 100;
 		_max_height = 60;
 	}
+
+	_text_align = AlignLeft;
+	_font_weight = Normal;
+	_font_size = 12;
 }
 
 QIcon DocumentItem::iconForType(Type const& type) {
@@ -223,7 +227,9 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
             pName == "posY" or
             pName == "maxWidth" or
             pName == "maxHeight" or
-            pName == "fontSize") {
+			pName == "fontSize" or
+			pName == "textAlign" or
+			pName == "fontWeight") {
             return false;
         }
         break;
@@ -237,7 +243,9 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
             pName == "borderWidth" or
             pName == "borderColor" or
             pName == "fillColor" or
-            pName == "fontSize") {
+			pName == "fontSize" or
+			pName == "textAlign" or
+			pName == "fontWeight") {
             return false;
         }
     case Loop:
@@ -245,7 +253,9 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
     case Plugin:
     case Image:
     case Frame:
-        if (pName == "fontSize") {
+		if (pName == "fontSize" or
+			pName == "textAlign" or
+			pName == "fontWeight") {
             return false;
         }
     default:

@@ -24,6 +24,8 @@
 #include <QJsonArray>
 #include <QMenuBar>
 #include <QMenu>
+#include <QButtonGroup>
+#include <QPushButton>
 
 #include "../lib/documentitem.h"
 #include "../lib/documenttemplate.h"
@@ -341,6 +343,78 @@ void MainWindows::refreshPropertiesWidget() {
 			layout->addRow(tr("Max Height"), maxHeightEdit);
 		}
 
+	}
+
+	if (type == DocumentItem::Text) {
+		QButtonGroup* textAlignmentGroup = new QButtonGroup(widget);
+
+		QPushButton* alignLeftButton = new QPushButton(QIcon(":/icons/align_left.svg"), "", widget);
+		QPushButton* alignCenterButton = new QPushButton(QIcon(":/icons/align_center.svg"), "", widget);
+		QPushButton* alignRightButton = new QPushButton(QIcon(":/icons/align_right.svg"), "", widget);
+		QPushButton* alignJustifyButton = new QPushButton(QIcon(":/icons/align_justify.svg"), "", widget);
+
+		alignLeftButton->setCheckable(true);
+		alignCenterButton->setCheckable(true);
+		alignRightButton->setCheckable(true);
+		alignJustifyButton->setCheckable(true);
+
+		switch(item->textAlign()) {
+		case DocumentItem::TextAlign::AlignLeft:
+			alignLeftButton->setChecked(true);
+			break;
+		case DocumentItem::TextAlign::AlignCenter:
+			alignCenterButton->setChecked(true);
+			break;
+		case DocumentItem::TextAlign::AlignRight:
+			alignRightButton->setChecked(true);
+			break;
+		case DocumentItem::TextAlign::AlignJustify:
+			alignJustifyButton->setChecked(true);
+			break;
+		default:
+			alignLeftButton->setChecked(true);
+		}
+
+		textAlignmentGroup->addButton(alignLeftButton, DocumentItem::TextAlign::AlignLeft);
+		textAlignmentGroup->addButton(alignCenterButton, DocumentItem::TextAlign::AlignCenter);
+		textAlignmentGroup->addButton(alignRightButton, DocumentItem::TextAlign::AlignRight);
+		textAlignmentGroup->addButton(alignJustifyButton, DocumentItem::TextAlign::AlignJustify);
+
+		connect(textAlignmentGroup, &QButtonGroup::idToggled, item, [item] (int id, bool checked) {
+			if (checked) {
+				item->setTextAlign(static_cast<DocumentItem::TextAlign>(id));
+			}
+		});
+
+		QHBoxLayout* buttonLayout = new QHBoxLayout();
+
+		buttonLayout->addWidget(alignLeftButton);
+		buttonLayout->addWidget(alignCenterButton);
+		buttonLayout->addWidget(alignRightButton);
+		buttonLayout->addWidget(alignJustifyButton);
+
+		layout->addRow(tr("Text align"), buttonLayout);
+
+		QComboBox* weightSelect = new QComboBox(widget);
+
+		weightSelect->addItem(tr("Thin"), DocumentItem::TextWeight::Thin);
+		weightSelect->addItem(tr("ExtraLight"), DocumentItem::TextWeight::ExtraLight);
+		weightSelect->addItem(tr("Light"), DocumentItem::TextWeight::Light);
+		weightSelect->addItem(tr("Normal"), DocumentItem::TextWeight::Normal);
+		weightSelect->addItem(tr("Medium"), DocumentItem::TextWeight::Medium);
+		weightSelect->addItem(tr("DemiBold"), DocumentItem::TextWeight::DemiBold);
+		weightSelect->addItem(tr("Bold"), DocumentItem::TextWeight::Bold);
+		weightSelect->addItem(tr("ExtraBold"), DocumentItem::TextWeight::ExtraBold);
+		weightSelect->addItem(tr("Black"), DocumentItem::TextWeight::Black);
+
+		int currentIndex = weightSelect->findData(item->fontWeight());
+		weightSelect->setCurrentIndex(currentIndex);
+
+		connect(weightSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, weightSelect] () {
+			item->setFontWeight(weightSelect->currentData().toInt());
+		});
+
+		layout->addRow(tr("Font weight"), weightSelect);
 	}
 
     QLineEdit* dataKeyEditLine = new QLineEdit(widget);
