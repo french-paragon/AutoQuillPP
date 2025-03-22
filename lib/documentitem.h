@@ -38,7 +38,7 @@ public:
 
 	enum OverflowBehavior {
 		DrawFirstInstanceOnly,
-		CopyFirst,
+		CopyOnNewPages,
 		OverflowOnNewPage
 	};
 
@@ -83,7 +83,8 @@ public:
 		}
 	}
 
-    Q_PROPERTY(Direction direction READ direction WRITE setDirection NOTIFY directionChanged);
+	Q_PROPERTY(QString direction READ directionStr WRITE setDirectionStr NOTIFY directionChanged);
+	Q_PROPERTY(QString overflowBehavior READ overflowBehaviorStr WRITE setOverflowBehaviorStr NOTIFY overflowBehaviorChanged);
 
     Q_PROPERTY(qreal posX READ posX WRITE setPosX NOTIFY posXChanged)
     Q_PROPERTY(qreal posY READ posY WRITE setPosY NOTIFY posYChanged)
@@ -110,21 +111,65 @@ public:
 
     inline Type getType() const {
         return _type;
-    }
+	}
 
-    inline Direction direction() const {
-        return _direction;
-    }
+	inline Direction direction() const {
+		return _direction;
+	}
 
-    inline void setDirection(Direction direction) {
-        if (direction != _direction) {
-            _direction = direction;
-            Q_EMIT directionChanged();
-        }
-    }
+	inline QString directionStr() const {
+		switch(_direction) {
+		case Left2Right:
+			return "Left2Right";
+		case Right2Left:
+			return "Right2Left";
+		case Top2Bottom:
+			return "Top2Bottom";
+		case Bottom2Top:
+			return "Bottom2Top";
+		}
+		return "Top2Bottom";
+	}
+
+	inline void setDirection(Direction direction) {
+		if (direction != _direction) {
+			_direction = direction;
+			Q_EMIT directionChanged();
+		}
+	}
+
+	inline void setDirectionStr(QString const& dirStr) {
+		Direction direction = Top2Bottom;
+
+		QString str = dirStr.toLower();
+
+		if (str == "left2right" or str == "lefttoright") {
+			direction = Left2Right;
+		} else if (str == "right2left" or str == "righttoleft") {
+			direction = Right2Left;
+		} else if (str == "top2bottom" or str == "toptobottom") {
+			direction = Top2Bottom;
+		} else if (str == "bottom2top" or str == "bottomtotop") {
+			direction = Bottom2Top;
+		}
+
+		setDirection(direction);
+	}
 
 	inline OverflowBehavior overflowBehavior() const {
 		return _overflowBehavior;
+	}
+
+	inline QString overflowBehaviorStr() const {
+		switch (_overflowBehavior) {
+		case DrawFirstInstanceOnly:
+			return "DrawFirstInstanceOnly";
+		case CopyOnNewPages:
+			return "CopyFirst";
+		case OverflowOnNewPage:
+			return "OverflowOnNewPage";
+		}
+		return "DrawFirstInstanceOnly";
 	}
 
 	inline void setOverflowBehavior(OverflowBehavior overflowBehavior) {
@@ -132,6 +177,22 @@ public:
 			_overflowBehavior = overflowBehavior;
 			Q_EMIT overflowBehaviorChanged();
 		}
+	}
+
+	inline void setOverflowBehaviorStr(QString str) {
+		OverflowBehavior behavior = DrawFirstInstanceOnly;
+
+		QString lowercase = str.toLower();
+
+		if (lowercase == "drawfirstinstanceonly") {
+			behavior = DrawFirstInstanceOnly;
+		} else if (lowercase == "copyfirst") {
+			behavior = CopyOnNewPages;
+		} else if (lowercase == "overflowonnewpage") {
+			behavior = OverflowOnNewPage;
+		}
+
+		setOverflowBehavior(behavior);
 	}
 
     inline qreal posX() const {
