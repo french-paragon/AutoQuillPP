@@ -100,6 +100,7 @@ public:
 
     Q_PROPERTY(QColor fillColor READ fillColor WRITE setFillColor NOTIFY fillColorChanged)
 
+	Q_PROPERTY(QString fontName READ fontName WRITE setFontName NOTIFY fontNameChanged)
 	Q_PROPERTY(qreal fontSize READ fontSize WRITE setFontSize NOTIFY fontSizeChanged)
 	Q_PROPERTY(int fontWeight READ fontWeight WRITE setFontWeight NOTIFY fontWeightChanged)
 	Q_PROPERTY(QString textAlign READ textAlignName WRITE setTextAlignName NOTIFY textAlignChanged)
@@ -296,7 +297,7 @@ public:
 	}
 
 	inline qreal fontSize() const {
-		return _font_size;
+		return std::max(1.0, _font_size);
 	}
 
 	inline void setFontSize(qreal size) {
@@ -304,6 +305,20 @@ public:
 			_font_size = size;
 			Q_EMIT fontSizeChanged();
 		}
+	}
+
+	inline QString fontName() const {
+		return _font_name;
+	}
+
+	inline void setFontName(QString const& fontName) {
+
+		if (_font_name == fontName) {
+			return;
+		}
+
+		_font_name = fontName;
+		Q_EMIT fontNameChanged();
 	}
 
 	inline int fontWeight() const {
@@ -490,6 +505,7 @@ Q_SIGNALS:
 
     void fillColorChanged();
 
+	void fontNameChanged();
 	void fontSizeChanged();
 	void textAlignChanged();
 	void fontWeightChanged();
@@ -522,6 +538,7 @@ protected:
 
     QColor _fill_color;
 
+	QString _font_name;
 	qreal _font_size;
 	TextAlign _text_align;
 	int _font_weight;

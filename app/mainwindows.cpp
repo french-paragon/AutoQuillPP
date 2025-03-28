@@ -26,6 +26,7 @@
 #include <QMenu>
 #include <QButtonGroup>
 #include <QPushButton>
+#include <QFontComboBox>
 
 #include "../lib/documentitem.h"
 #include "../lib/documenttemplate.h"
@@ -346,6 +347,60 @@ void MainWindows::refreshPropertiesWidget() {
 	}
 
 	if (type == DocumentItem::Text) {
+
+		QFontComboBox* fontSelect = new QFontComboBox(widget);
+
+		if (!item->fontName().isEmpty()) {
+			QFont font(item->fontName());
+			fontSelect->setCurrentFont(font);
+		} else {
+			QFont font("serif");
+			fontSelect->setCurrentFont(font);
+		}
+
+		connect(fontSelect, &QFontComboBox::currentFontChanged, item, [item] (QFont const& font) {
+			item->setFontName(font.family());
+		});
+
+		layout->addRow(tr("Font"), fontSelect);
+
+		QComboBox* weightSelect = new QComboBox(widget);
+
+		weightSelect->addItem(tr("Thin"), DocumentItem::TextWeight::Thin);
+		weightSelect->addItem(tr("ExtraLight"), DocumentItem::TextWeight::ExtraLight);
+		weightSelect->addItem(tr("Light"), DocumentItem::TextWeight::Light);
+		weightSelect->addItem(tr("Normal"), DocumentItem::TextWeight::Normal);
+		weightSelect->addItem(tr("Medium"), DocumentItem::TextWeight::Medium);
+		weightSelect->addItem(tr("DemiBold"), DocumentItem::TextWeight::DemiBold);
+		weightSelect->addItem(tr("Bold"), DocumentItem::TextWeight::Bold);
+		weightSelect->addItem(tr("ExtraBold"), DocumentItem::TextWeight::ExtraBold);
+		weightSelect->addItem(tr("Black"), DocumentItem::TextWeight::Black);
+
+		int currentIndex = weightSelect->findData(item->fontWeight());
+		weightSelect->setCurrentIndex(currentIndex);
+
+		connect(weightSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, weightSelect] () {
+			item->setFontWeight(weightSelect->currentData().toInt());
+		});
+
+		layout->addRow(tr("Font weight"), weightSelect);
+
+		QDoubleSpinBox* sizeSelect = new QDoubleSpinBox(widget);
+
+		sizeSelect->setMinimum(0);
+		sizeSelect->setMaximum(99999);
+		sizeSelect->setDecimals(1);
+		sizeSelect->setSingleStep(1);
+
+		sizeSelect->setValue(item->fontSize());
+
+		connect(sizeSelect, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), item, [item, sizeSelect] () {
+			item->setFontSize(sizeSelect->value());
+		});
+
+		layout->addRow(tr("Font size"), sizeSelect);
+
+
 		QButtonGroup* textAlignmentGroup = new QButtonGroup(widget);
 
 		QPushButton* alignLeftButton = new QPushButton(QIcon(":/icons/align_left.svg"), "", widget);
@@ -394,27 +449,6 @@ void MainWindows::refreshPropertiesWidget() {
 		buttonLayout->addWidget(alignJustifyButton);
 
 		layout->addRow(tr("Text align"), buttonLayout);
-
-		QComboBox* weightSelect = new QComboBox(widget);
-
-		weightSelect->addItem(tr("Thin"), DocumentItem::TextWeight::Thin);
-		weightSelect->addItem(tr("ExtraLight"), DocumentItem::TextWeight::ExtraLight);
-		weightSelect->addItem(tr("Light"), DocumentItem::TextWeight::Light);
-		weightSelect->addItem(tr("Normal"), DocumentItem::TextWeight::Normal);
-		weightSelect->addItem(tr("Medium"), DocumentItem::TextWeight::Medium);
-		weightSelect->addItem(tr("DemiBold"), DocumentItem::TextWeight::DemiBold);
-		weightSelect->addItem(tr("Bold"), DocumentItem::TextWeight::Bold);
-		weightSelect->addItem(tr("ExtraBold"), DocumentItem::TextWeight::ExtraBold);
-		weightSelect->addItem(tr("Black"), DocumentItem::TextWeight::Black);
-
-		int currentIndex = weightSelect->findData(item->fontWeight());
-		weightSelect->setCurrentIndex(currentIndex);
-
-		connect(weightSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, weightSelect] () {
-			item->setFontWeight(weightSelect->currentData().toInt());
-		});
-
-		layout->addRow(tr("Font weight"), weightSelect);
 	}
 
     QLineEdit* dataKeyEditLine = new QLineEdit(widget);

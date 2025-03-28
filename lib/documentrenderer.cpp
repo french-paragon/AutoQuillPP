@@ -31,8 +31,16 @@ DocumentRenderer::~DocumentRenderer() {
 
 DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface* dataInterface, QString const& filename) {
 
+	if (dataInterface == nullptr) {
+		return RenderingStatus{MissingData, QObject::tr("Missing data interface")};
+	}
+
 	if (_docTemplate == nullptr) {
-		return RenderingStatus{OtherError, QObject::tr("Invalid template")};
+		return RenderingStatus{MissingModel, QObject::tr("Invalid template")};
+	}
+
+	if (_writer != nullptr) {
+		delete _writer;
 	}
 
 	_writer = new QPdfWriter(filename);
@@ -41,16 +49,37 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 
 	if (_painter != nullptr) {
 		delete _painter;
-		_painter = nullptr; //need to mark that before the first page is created.
 	}
+
+	_painter = new QPainter(_writer);
+	_pagesToWrite = 0;
+	_pagesWritten = 0;
 
 	RenderingStatus status{Success, ""};
 
-	for (DocumentItem* item : _docTemplate->subitems()) {
+	QVector<itemRenderInfos> layout;
 
-		DocumentValue val = dataInterface->getValue(item->dataKey());
+	RenderingStatus layoutStatus = layoutDocument(layout, dataInterface);
 
-		RenderingStatus itemStatus = renderItem(item, val);
+	if (layoutStatus.status != Success) {
+		delete _painter;
+		delete _writer;
+		_painter = nullptr;
+		_writer = nullptr;
+		return layoutStatus;
+	}
+
+	if (layout.isEmpty()) {
+		delete _painter;
+		delete _writer;
+		_painter = nullptr;
+		_writer = nullptr;
+		return RenderingStatus{MissingModel, QObject::tr("Final layout is empty")};
+	}
+
+	for (itemRenderInfos& item : layout) {
+
+		RenderingStatus itemStatus = renderItem(item);
 
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
@@ -60,6 +89,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 			status.message += itemStatus.message;
 		}
 	}
+
+	delete _painter;
+	delete _writer;
+	_painter = nullptr;
+	_writer = nullptr;
 
 	return status;
 }
@@ -402,8 +436,6 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 		subItemInfos->continuationIndex = QVariant();
 		subItemInfos->layoutStatus = Success;
 
-		itemInfos.subitemsRenderInfos.push_back(subItemInfos);
-
 		itemRenderInfos* previousItemRenderInfos = nullptr;
 
 		if (previousRender != nullptr) {
@@ -439,6 +471,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 			status.message += itemStatus.message;
 		}
 	}
+
+	_pagesToWrite++;
 
 	return status;
 }
@@ -693,14 +727,34 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(itemRenderInfos& 
 		origin.ry() = _renderContext.origin.y() - itemInfos.item->origin().y();
 	}
 
+	itemInfos.currentOrigin = origin;
+
 	QSizeF renderSize(itemInfos.item->initialSize());
 
-	QFont font = _painter->font();
+	QFont font("serif", 12);
+	font.setFamily(itemInfos.item->fontName());
 	font.setPointSizeF(itemInfos.item->fontSize());
-	_painter->setFont(font);
+	QFontMetrics fontMetric(font);
+
+	int flags = Qt::AlignLeft;
+
+	switch (itemInfos.item->textAlign()) {
+	case DocumentItem::TextAlign::AlignLeft:
+		flags = Qt::AlignLeft;
+		break;
+	case DocumentItem::TextAlign::AlignRight:
+		flags = Qt::AlignRight;
+		break;
+	case DocumentItem::TextAlign::AlignCenter:
+		flags = Qt::AlignHCenter;
+		break;
+	case DocumentItem::TextAlign::AlignJustify:
+		flags = Qt::AlignJustify;
+		break;
+	}
 
 	QRectF rectangle = QRectF(origin, renderSize);
-	QRectF boundingRect = _painter->boundingRect(rectangle, text);
+	QRectF boundingRect = fontMetric.boundingRect(rectangle.toRect(), flags,  text);
 
 	RenderingStatus status{Success, "", boundingRect.size()};
 
@@ -752,6 +806,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(itemRenderInfos&
 		origin.ry() = _renderContext.origin.y() - itemInfos.item->origin().y();
 	}
 
+	itemInfos.currentOrigin = origin;
+
 	QSizeF renderSize(itemInfos.item->initialSize());
 
 	RenderingStatus status{Success, "", renderSize};
@@ -760,169 +816,144 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(itemRenderInfos&
 }
 
 
-DocumentRenderer::RenderingStatus DocumentRenderer::renderItem(DocumentItem* item, DocumentValue const& val) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderItem(itemRenderInfos& itemInfos) {
 
-	switch(item->getType()) {
+	if (itemInfos.item == nullptr) {
+		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
+	}
+
+	switch(itemInfos.item->getType()) {
 	case DocumentItem::Type::Condition:
-		return renderCondition(item, val);
+		return renderCondition(itemInfos);
 	case DocumentItem::Type::Loop:
-		return renderLoop(item, val);
+		return renderLoop(itemInfos);
 	case DocumentItem::Type::Page:
-		return renderPage(item, val);
+		return renderPage(itemInfos);
 	case DocumentItem::Type::List:
-		return renderList(item, val);
+		return renderList(itemInfos);
 	case DocumentItem::Type::Frame:
-		return renderFrame(item, val);
+		return renderFrame(itemInfos);
 	case DocumentItem::Type::Text:
-		return renderText(item, val);
+		return renderText(itemInfos);
 	case DocumentItem::Type::Image:
-		return renderImage(item, val);
+		return renderImage(itemInfos);
 	case DocumentItem::Type::Plugin:
-		return RenderingStatus{OtherError, QObject::tr("Plugins not yet supported, block : %1").arg(item->objectName())};
+		return RenderingStatus{OtherError, QObject::tr("Plugins not yet supported, block : %1").arg(itemInfos.item->objectName())};
 	case DocumentItem::Type::Invalid:
-		return RenderingStatus{OtherError, QObject::tr("Invalid block : %1").arg(item->objectName())};
+		return RenderingStatus{OtherError, QObject::tr("Invalid block : %1").arg(itemInfos.item->objectName())};
 	}
 
-	return RenderingStatus{OtherError, QObject::tr("Unknown error for block : %1").arg(item->objectName())};
+	return RenderingStatus{OtherError, QObject::tr("Unknown error for block : %1").arg(itemInfos.item->objectName())};
 }
 
 
-DocumentRenderer::RenderingStatus DocumentRenderer::renderCondition(DocumentItem* item, DocumentValue const& val) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderCondition(itemRenderInfos& itemInfos) {
 
-	if (item == nullptr) {
-		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
+	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+		if (subitemInfos == nullptr) {
+			continue;
+		}
+		RenderingStatus status = renderItem(*subitemInfos);
+
+		if (status.status != Success) {
+			return status;
+		}
 	}
 
-	if (!val.hasMap()) {
-		return RenderingStatus{MissingData, QObject::tr("Cannot read context map for condition : %1").arg(item->objectName())};
-	}
-
-	if (item->subitems().size() != 2) {
-		return RenderingStatus{MissingModel, QObject::tr("Condition : %1, does not have two subitems, conditions should have exactly two subitems").arg(item->objectName())};
-	}
-
-	QString conditionKey = item->data();
-
-	DocumentValue docdata = val.getValue(conditionKey);
-
-	QVariant conditionData;
-
-	if (docdata.hasData()) {
-		conditionData = docdata.getValue();
-	}
-
-	bool condition = conditionData.toBool();
-
-	DocumentItem* target_item = item->subitems()[1];
-
-	if (condition) {
-		target_item = item->subitems()[0];
-	}
-
-
-	DocumentValue target_val = val.getValue(target_item->dataKey());
-
-	return renderItem(target_item, target_val);
+	return RenderingStatus{Success, "", itemInfos.currentSize};
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(DocumentItem* item, DocumentValue const& val) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(itemRenderInfos& itemInfos) {
 
-	if (item == nullptr) {
-		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
-	}
+	RenderingStatus status{Success, ""};
 
-	if (!val.hasArray()) {
-		return RenderingStatus{MissingData, QObject::tr("Cannot read context array for loop : %1").arg(item->objectName())};
-	}
+	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+		if (subitemInfos == nullptr) {
+			continue;
+		}
+		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
-	if (item->subitems().size() != 1) {
-		return RenderingStatus{MissingModel, QObject::tr("Loop : %1, does not have one subitem, loops should have exactly one subitem (the delegate)").arg(item->objectName())};
-	}
-
-	int nCopies = val.arraySize();
-
-	RenderContext oldContext = _renderContext;
-
-	QSizeF renderSize(0,0);
-	_renderContext = RenderContext{item->direction(),
-			oldContext.origin + item->origin(),
-			oldContext.region.boundedTo(item->initialSize())};
-
-	Status status = Success;
-	QString message = "";
-
-	for (int i = 0; i < nCopies; i++) {
-
-		DocumentValue idxVal = val.getValue(i);
-		RenderingStatus renderStatus = renderItem(item->subitems()[0], idxVal);
-
-		if (renderStatus.status == MissingSpace) {
-			if (i == 0) {
-				status = MissingSpace;
-				message = renderStatus.message + QString("\n Table: %1 missing space to render at least one item").arg(item->objectName());
-			} else {
-				status = NotAllItemsRendered;
+		if (itemStatus.status != Success) {
+			status.status = itemStatus.status;
+			if (!status.message.isEmpty()) {
+				status.message += "\n";
 			}
-			break;
-		}
-
-		switch(_renderContext.direction) {
-		case DocumentItem::Left2Right:
-			_renderContext.origin.rx() += renderStatus.renderSize.width();
-			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
-			renderSize.rwidth() += renderStatus.renderSize.width();
-			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
-            break;
-		case DocumentItem::Right2Left:
-			_renderContext.origin.rx() -= renderStatus.renderSize.width();
-			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
-			renderSize.rwidth() += renderStatus.renderSize.width();
-			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
-            break;
-		case DocumentItem::Top2Bottom:
-			_renderContext.origin.ry() += renderStatus.renderSize.height();
-            _renderContext.region.rheight() -= renderStatus.renderSize.height();
-            renderSize.rwidth() = std::max(renderSize.width(), renderStatus.renderSize.width());
-			renderSize.rheight() += renderStatus.renderSize.height();
-            break;
-		case DocumentItem::Bottom2Top:
-			renderSize.rwidth() += std::max(renderSize.height(), renderStatus.renderSize.height());
-			renderSize.rheight() += renderStatus.renderSize.height();
-            break;
+			status.message += itemStatus.message;
 		}
 	}
 
-	_renderContext = oldContext;
-
-	return RenderingStatus{status, message, renderSize};
+	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(DocumentItem* item, DocumentValue const& val) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(itemRenderInfos& itemInfos) {
 
-	if (item == nullptr) {
+	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
-	QPageSize pageSize(item->initialSize(), QPageSize::Unit::Point);
+	QPageSize pageSize(itemInfos.currentSize, QPageSize::Unit::Point);
 	QPageLayout layout;
 	layout.setPageSize(pageSize);
 
 	//ensure painting start on a new page straight after setting the page layout.
-	if (_painter == nullptr) {
-		_painter = new QPainter(_writer);
-	} else {
-		_writer->newPage();
+	if (_pagesWritten > 0) {
+		_writer->newPage(); //create a new page in the writer.
 	}
-
-	_renderContext = RenderContext{item->direction(), item->origin(), item->initialSize()};
 
 	RenderingStatus status{Success, ""};
 
-    for (DocumentItem* sitem : item->subitems()) {
+	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+		if (subitemInfos == nullptr) {
+			continue;
+		}
+		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
-        DocumentValue item_val = val.getValue(sitem->dataKey());
+		if (itemStatus.status != Success) {
+			status.status = itemStatus.status;
+			if (!status.message.isEmpty()) {
+				status.message += "\n";
+			}
+			status.message += itemStatus.message;
+		}
+	}
 
-        RenderingStatus itemStatus = renderItem(sitem, item_val);
+	_pagesWritten++;
+
+	return status;
+
+
+}
+DocumentRenderer::RenderingStatus DocumentRenderer::renderList(itemRenderInfos& itemInfos) {
+
+	RenderingStatus status{Success, ""};
+
+	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+		if (subitemInfos == nullptr) {
+			continue;
+		}
+		RenderingStatus itemStatus = renderItem(*subitemInfos);
+
+		if (itemStatus.status != Success) {
+			status.status = itemStatus.status;
+			if (!status.message.isEmpty()) {
+				status.message += "\n";
+			}
+			status.message += itemStatus.message;
+		}
+	}
+
+	return status;
+
+}
+DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(itemRenderInfos& itemInfos) {
+
+	RenderingStatus status{Success, ""};
+
+	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+		if (subitemInfos == nullptr) {
+			continue;
+		}
+		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
@@ -937,133 +968,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(DocumentItem* ite
 
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderList(DocumentItem* item, DocumentValue const& val) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderText(itemRenderInfos& itemInfos) {
 
-	if (item == nullptr) {
-		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
-	}
-
-	RenderContext oldContext = _renderContext;
-
-	QSizeF renderSize(0,0);
-	_renderContext = RenderContext{item->direction(),
-			oldContext.origin + item->origin(),
-			oldContext.region.boundedTo(item->initialSize())};
-
-	Status status = Success;
-	QString message = "";
-
-	int rendered = 0;
-
-    for (DocumentItem* sitem : item->subitems()) {
-
-        DocumentValue item_val = val.getValue(sitem->dataKey());
-        RenderingStatus renderStatus = renderItem(sitem, item_val);
-
-		if (renderStatus.status == MissingSpace) {
-			if (rendered == 0) {
-				status = MissingSpace;
-				message = renderStatus.message + QString("\n List: %1 missing space to render at least one item").arg(item->objectName());
-			} else {
-				status = NotAllItemsRendered;
-			}
-			break;
-		}
-
-		rendered++;
-
-		switch(_renderContext.direction) {
-		case DocumentItem::Left2Right:
-			_renderContext.origin.rx() += renderStatus.renderSize.width();
-			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
-			renderSize.rwidth() += renderStatus.renderSize.width();
-			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
-            break;
-		case DocumentItem::Right2Left:
-			_renderContext.origin.rx() -= renderStatus.renderSize.width();
-			_renderContext.region.rwidth() -= renderStatus.renderSize.width();
-			renderSize.rwidth() += renderStatus.renderSize.width();
-			renderSize.rheight() = std::max(renderSize.height(), renderStatus.renderSize.height());
-            break;
-		case DocumentItem::Top2Bottom:
-			_renderContext.origin.ry() += renderStatus.renderSize.height();
-            _renderContext.region.rheight() -= renderStatus.renderSize.height();
-            renderSize.rwidth() = std::max(renderSize.width(), renderStatus.renderSize.width());
-			renderSize.rheight() += renderStatus.renderSize.height();
-            break;
-		case DocumentItem::Bottom2Top:
-			renderSize.rwidth() += std::max(renderSize.height(), renderStatus.renderSize.height());
-			renderSize.rheight() += renderStatus.renderSize.height();
-            break;
-		}
-	}
-
-	_renderContext = oldContext;
-
-	return RenderingStatus{status, message, renderSize};
-
-}
-DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(DocumentItem* item, DocumentValue const& val) {
-
-	if (item == nullptr) {
-		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
-	}
-
-	QSizeF itemInitialSize = item->initialSize();
-
-	if (itemInitialSize.width() > _renderContext.region.width() or
-			itemInitialSize.height() > _renderContext.region.height()) {
-		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Frame: %1").arg(item->objectName())};
-	}
-
-	RenderContext oldContext = _renderContext;
-
-	QPointF origin = oldContext.origin + item->origin();
-
-	if (_renderContext.direction == DocumentItem::Right2Left) {
-		origin.rx() = oldContext.origin.x() - item->origin().x();
-	}
-
-	if (_renderContext.direction == DocumentItem::Bottom2Top) {
-		origin.ry() = oldContext.origin.y() - item->origin().y();
-	}
-
-	QSizeF renderSize(item->initialSize());
-	_renderContext = RenderContext{item->direction(),
-			origin,
-			item->initialSize()};
-
-	RenderingStatus status{Success, ""};
-
-    for (DocumentItem* sitem : item->subitems()) {
-
-        DocumentValue item_val = val.getValue(sitem->dataKey());
-
-        RenderingStatus itemStatus = renderItem(sitem, item_val);
-
-		if (itemStatus.status != Success) {
-			status.status = itemStatus.status;
-			if (!status.message.isEmpty()) {
-				status.message += "\n";
-			}
-			status.message += itemStatus.message;
-		} else {
-			renderSize.rwidth() = std::max(status.renderSize.width(), renderSize.width());
-			renderSize.rheight() = std::max(status.renderSize.height(), renderSize.height());
-		}
-	}
-
-	status.renderSize = renderSize;
-
-    _renderContext = oldContext;
-
-	return status;
-
-
-}
-DocumentRenderer::RenderingStatus DocumentRenderer::renderText(DocumentItem* item, DocumentValue const& val) {
-
-	if (item == nullptr) {
+	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
@@ -1071,36 +978,24 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(DocumentItem* ite
 		return RenderingStatus{OtherError, QObject::tr("Invalid painter used for rendering!")};
 	}
 
-	QSizeF itemInitialSize = item->initialSize();
+	QSizeF itemSize = itemInfos.currentSize;
 
-	if (itemInitialSize.width() > _renderContext.region.width() or
-			itemInitialSize.height() > _renderContext.region.height()) {
-        return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Text: %1").arg(item->objectName())};
-	}
-
-	QVariant variant = val.getValue();
+	QVariant variant = itemInfos.itemValue.getValue();
 	QString text;
 
 	if (variant.isValid()) {
 		text = variant.toString();
 	} else {
-		text = item->data();
+		text = itemInfos.item->data();
 	}
 
-	QPointF origin = _renderContext.origin + item->origin();
+	QPointF origin = itemInfos.currentOrigin;
 
-	if (_renderContext.direction == DocumentItem::Right2Left) {
-		origin.rx() = _renderContext.origin.x() - item->origin().x();
-	}
+	QSizeF renderSize = itemInfos.currentSize;
 
-	if (_renderContext.direction == DocumentItem::Bottom2Top) {
-		origin.ry() = _renderContext.origin.y() - item->origin().y();
-	}
-
-	QSizeF renderSize(item->initialSize());
-
-	QFont font = _painter->font();
-	font.setPointSizeF(item->fontSize());
+	QFont font("serif", 12);
+	font.setFamily(itemInfos.item->fontName());
+	font.setPointSizeF(itemInfos.item->fontSize());
 	_painter->setFont(font);
 
 	QRectF rectangle = QRectF(origin, renderSize);
@@ -1111,15 +1006,15 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(DocumentItem* ite
 
 	if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
 		status.status = MissingSpace;
-		status.message = QObject::tr("Text from text block %1 overflow").arg(item->objectName());
+		status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
 	}
 
 	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(DocumentItem* item, DocumentValue const& val) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(itemRenderInfos& itemInfos) {
 
-    if (item == nullptr) {
+	if (itemInfos.item == nullptr) {
         return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
     }
 
@@ -1127,14 +1022,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(DocumentItem* it
         return RenderingStatus{OtherError, QObject::tr("Invalid painter used for rendering!")};
     }
 
-    QSizeF itemInitialSize = item->initialSize();
-
-    if (itemInitialSize.width() > _renderContext.region.width() or
-        itemInitialSize.height() > _renderContext.region.height()) {
-        return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Image: %1").arg(item->objectName())};
-    }
-
-    QVariant variant = val.getValue();
+	QVariant variant = itemInfos.itemValue.getValue();
     QImage image;
 
     if (variant.isValid()) {
@@ -1144,24 +1032,16 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(DocumentItem* it
             image = QImage(variant.toString());
         }
     } else {
-        image = QImage(item->data());
+		image = QImage(itemInfos.item->data());
     }
 
     if (image.isNull()) {
-        return RenderingStatus{MissingData, QObject::tr("Not enough space to render Image: %1").arg(item->objectName())};
+		return RenderingStatus{MissingData, QObject::tr("Not enough space to render Image: %1").arg(itemInfos.item->objectName())};
     }
 
-    QPointF origin = _renderContext.origin + item->origin();
+	QPointF origin = itemInfos.currentOrigin;
 
-    if (_renderContext.direction == DocumentItem::Right2Left) {
-        origin.rx() = _renderContext.origin.x() - item->origin().x();
-    }
-
-    if (_renderContext.direction == DocumentItem::Bottom2Top) {
-        origin.ry() = _renderContext.origin.y() - item->origin().y();
-    }
-
-	QSizeF renderSize(item->initialSize());
+	QSizeF renderSize = itemInfos.currentSize;
 
 	QRectF rectangle = QRectF(origin, renderSize);
     _painter->drawImage(rectangle, image);

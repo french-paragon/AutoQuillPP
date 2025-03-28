@@ -226,7 +226,8 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
         if (pName == "posX" or
             pName == "posY" or
             pName == "maxWidth" or
-            pName == "maxHeight" or
+			pName == "maxHeight" or
+			pName == "fontName" or
 			pName == "fontSize" or
 			pName == "textAlign" or
 			pName == "fontWeight") {
@@ -243,6 +244,7 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
             pName == "borderWidth" or
             pName == "borderColor" or
             pName == "fillColor" or
+			pName == "fontName" or
 			pName == "fontSize" or
 			pName == "textAlign" or
 			pName == "fontWeight") {
@@ -254,6 +256,7 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
     case Image:
     case Frame:
 		if (pName == "fontSize" or
+			pName == "fontName" or
 			pName == "textAlign" or
 			pName == "fontWeight") {
             return false;

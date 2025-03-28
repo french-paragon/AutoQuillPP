@@ -57,6 +57,7 @@ protected :
 
 		DocumentValue itemValue;
 		DocumentItem* item;
+		QPointF currentOrigin;
 		QSizeF currentSize;
 		QSizeF maxSize;
 		Status layoutStatus;
@@ -81,18 +82,20 @@ protected :
 	RenderingStatus layoutText(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 	RenderingStatus layoutImage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 
-	RenderingStatus renderItem(DocumentItem* item, DocumentValue const& val);
+	RenderingStatus renderItem(itemRenderInfos& itemInfos);
 
-	RenderingStatus renderCondition(DocumentItem* item, DocumentValue const& val);
-	RenderingStatus renderLoop(DocumentItem* item, DocumentValue const& val);
-	RenderingStatus renderPage(DocumentItem* item, DocumentValue const& val);
-	RenderingStatus renderList(DocumentItem* item, DocumentValue const& val);
-	RenderingStatus renderFrame(DocumentItem* item, DocumentValue const& val);
-	RenderingStatus renderText(DocumentItem* item, DocumentValue const& val);
-	RenderingStatus renderImage(DocumentItem* item, DocumentValue const& val);
+	RenderingStatus renderCondition(itemRenderInfos& itemInfos);
+	RenderingStatus renderLoop(itemRenderInfos& itemInfos);
+	RenderingStatus renderPage(itemRenderInfos& itemInfos);
+	RenderingStatus renderList(itemRenderInfos& itemInfos);
+	RenderingStatus renderFrame(itemRenderInfos& itemInfos);
+	RenderingStatus renderText(itemRenderInfos& itemInfos);
+	RenderingStatus renderImage(itemRenderInfos& itemInfos);
 
 	QPainter* _painter;
 	QPdfWriter* _writer;
+	int _pagesWritten;
+	int _pagesToWrite;
 
 	DocumentTemplate* _docTemplate;
 
