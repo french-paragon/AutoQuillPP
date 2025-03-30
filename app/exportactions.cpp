@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <QTextStream>
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -81,7 +82,15 @@ bool exportTemplateUsingJson(DocumentTemplate* documentTemplate,
 
     DocumentRenderer renderer(documentTemplate);
 
-    renderer.render(&dataInterface, outFileName);
+	auto rendering_status = renderer.render(&dataInterface, outFileName);
+
+	QTextStream out(stdout);
+
+	if (rendering_status.status == DocumentRenderer::Status::Success) {
+		out << "Successfully rendered document" << Qt::endl;
+	} else {
+		out << "The renderer encountered some errors: " << rendering_status.message << Qt::endl;
+	}
 
     return true;
 }
