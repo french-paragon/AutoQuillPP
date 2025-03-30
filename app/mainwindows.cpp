@@ -272,6 +272,25 @@ void MainWindows::refreshPropertiesWidget() {
 
 	DocumentItem::Type type = item->getType();
 
+	if (item->parentPage() != nullptr) { //item belongs to a page
+
+		QComboBox* overflowBehaviorSelect = new QComboBox(widget);
+
+		overflowBehaviorSelect->addItem(tr("Continue on new page"), DocumentItem::OverflowBehavior::OverflowOnNewPage);
+		overflowBehaviorSelect->addItem(tr("Copy on new page"), DocumentItem::OverflowBehavior::CopyOnNewPages);
+		overflowBehaviorSelect->addItem(tr("Draw only once"), DocumentItem::OverflowBehavior::DrawFirstInstanceOnly);
+
+		int currentIndex = overflowBehaviorSelect->findData(item->overflowBehavior());
+		overflowBehaviorSelect->setCurrentIndex(currentIndex);
+
+		connect(overflowBehaviorSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, overflowBehaviorSelect] () {
+			item->setOverflowBehavior(static_cast<DocumentItem::OverflowBehavior>(overflowBehaviorSelect->currentData().toInt()));
+		});
+
+		layout->addRow(tr("Overflow behavior"), overflowBehaviorSelect);
+
+	}
+
 	if (type != DocumentItem::Page and item->parentDocumentItem() != nullptr) {
 
 		QDoubleSpinBox* posXEdit = new QDoubleSpinBox(widget);

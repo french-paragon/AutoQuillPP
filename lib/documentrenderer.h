@@ -49,6 +49,10 @@ protected :
 
 	struct itemRenderInfos {
 
+		itemRenderInfos() {
+			toRender = true;
+		}
+
 		~itemRenderInfos() {
 			for (itemRenderInfos* itemRenderInfos : qAsConst(subitemsRenderInfos)) {
 				delete itemRenderInfos;
@@ -62,21 +66,18 @@ protected :
 		QSizeF maxSize;
 		Status layoutStatus;
 		Status renderStatus;
+		bool toRender;
 		bool rendered;
 		QVariant continuationIndex;
 		QVector<itemRenderInfos*> subitemsRenderInfos;
 	};
 
-	struct renderInfos {
-
-	};
-
-	RenderingStatus layoutDocument(QVector<itemRenderInfos> & pages, DocumentDataInterface* dataInterface);
-	RenderingStatus layoutItem(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutDocument(QVector<itemRenderInfos*> & pages, DocumentDataInterface* dataInterface);
+	RenderingStatus layoutItem(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr, QVector<itemRenderInfos*>* targetItemPool = nullptr);
 
 	RenderingStatus layoutCondition(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 	RenderingStatus layoutLoop(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutPage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutPage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr, QVector<itemRenderInfos*>* targetItemPool = nullptr);
 	RenderingStatus layoutList(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 	RenderingStatus layoutFrame(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 	RenderingStatus layoutText(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);

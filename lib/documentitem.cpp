@@ -15,15 +15,20 @@ DocumentItem::DocumentItem(Type type, QObject *parent) :
 	_direction(Top2Bottom)
 {
 	if (_type == Page) {
+
 		_initial_width = 595;
 		_initial_height = 842;
-	}
 
-	if (_type == Frame or _type == Text or _type == Image) {
+	} else if (_type == Frame or _type == Text or _type == Image) {
 		_initial_width = 100;
 		_initial_height = 60;
 		_max_width = 100;
 		_max_height = 60;
+	} else {
+		_initial_width = 10;
+		_initial_height = 10;
+		_max_width = 9999;
+		_max_height = 9999;
 	}
 
 	_text_align = AlignLeft;
@@ -218,6 +223,12 @@ QJsonValue DocumentItem::encapsulateToJson() const {
 bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
 
     QString pName(propName);
+
+	if (const_cast<DocumentItem*>(this)->parentPage() == nullptr) {
+		if (pName == "overflowBehavior") {
+			return false;
+		}
+	}
 
     switch(_type) {
     case Invalid:

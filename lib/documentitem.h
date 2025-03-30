@@ -435,6 +435,20 @@ public:
 	inline DocumentItem* parentDocumentItem() {
 		return qobject_cast<DocumentItem*>(parent());
 	}
+	inline DocumentItem* parentPage() {
+
+		DocumentItem* pItem = parentDocumentItem();
+
+		if (pItem == nullptr) {
+			return nullptr;
+		}
+
+		if (pItem->getType() == Page) {
+			return pItem;
+		}
+
+		return pItem->parentPage();
+	}
 
 	inline void insertSubItem(DocumentItem* item, int position = -1) {
 
