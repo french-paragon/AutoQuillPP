@@ -27,6 +27,7 @@
 #include <QButtonGroup>
 #include <QPushButton>
 #include <QFontComboBox>
+#include <QColorDialog>
 
 #include "../lib/documentitem.h"
 #include "../lib/documenttemplate.h"
@@ -362,6 +363,53 @@ void MainWindows::refreshPropertiesWidget() {
 			layout->addRow(tr("Max Width"), maxWidthEdit);
 			layout->addRow(tr("Max Height"), maxHeightEdit);
 		}
+
+	}
+
+	if (type == DocumentItem::Frame) {
+
+		QDoubleSpinBox* lineWidthEdit = new QDoubleSpinBox(widget);
+		QPushButton* lineColorEdit = new QPushButton(widget);
+		QPushButton* fillColorEdit = new QPushButton(widget);
+
+		lineWidthEdit->setMinimum(0);
+		lineWidthEdit->setMaximum(999);
+
+		lineWidthEdit->setValue(item->borderWidth());
+
+		connect(lineWidthEdit, static_cast<void(QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, [item] (double val) {
+			item->setBorderWidth(val);
+		});
+
+		lineColorEdit->setText(item->borderColor().name());
+		fillColorEdit->setText(item->fillColor().name());
+
+		connect(lineColorEdit, &QPushButton::clicked, this, [lineColorEdit, item] () {
+			QColor initial = QColor(lineColorEdit->text());
+
+			if (!initial.isValid()) {
+				initial = QColor(Qt::black);
+			}
+
+			QColor selected = QColorDialog::getColor(initial, lineColorEdit, tr("Select line color"));
+			if (selected.isValid()) {
+				lineColorEdit->setText(selected.name());
+				item->setBorderColor(selected);
+			}
+		});
+
+		connect(fillColorEdit, &QPushButton::clicked, this, [fillColorEdit, item] () {
+			QColor initial = QColor(fillColorEdit->text());
+			QColor selected = QColorDialog::getColor(initial, fillColorEdit, tr("Select fill color"));
+			if (selected.isValid()) {
+				fillColorEdit->setText(selected.name());
+				item->setFillColor(selected);
+			}
+		});
+
+		layout->addRow(tr("Line width"), lineWidthEdit);
+		layout->addRow(tr("Line color"), lineColorEdit);
+		layout->addRow(tr("Fill color"), fillColorEdit);
 
 	}
 

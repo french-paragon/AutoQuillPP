@@ -988,6 +988,27 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(itemRenderInfos&
 
 	RenderingStatus status{Success, ""};
 
+	QRectF rect(itemInfos.currentOrigin, itemInfos.currentSize);
+
+	if (itemInfos.item->fillColor().isValid()) {
+		_painter->fillRect(rect, itemInfos.item->fillColor());
+	}
+
+	if (itemInfos.item->borderColor().isValid() and itemInfos.item->borderWidth() > 0) {
+
+		QPen borderPen;
+		borderPen.setColor(itemInfos.item->borderColor());
+		borderPen.setWidthF(itemInfos.item->borderWidth());
+		borderPen.setStyle(Qt::SolidLine);
+		borderPen.setJoinStyle(Qt::MiterJoin);
+
+		QPen oldPen = _painter->pen();
+		_painter->setPen(borderPen);
+
+		_painter->drawRect(rect);
+		_painter->setPen(oldPen);
+	}
+
 	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
 		if (subitemInfos == nullptr) {
 			continue;

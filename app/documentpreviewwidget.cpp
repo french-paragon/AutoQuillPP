@@ -371,10 +371,22 @@ void DocumentPreviewWidget::paintItem(DocumentItem* item, QPainter& painter) {
 	borderPen.setColor(QColor(44,87,164));
 	borderPen.setWidth(3);
 	borderPen.setStyle(Qt::DashLine);
+	borderPen.setJoinStyle(Qt::MiterJoin);
 
 	QPointF pos(item->posX(), item->posY());
 	qreal s = 1/scale();
 	pos *= s;
+
+	if (item->getType() == DocumentItem::Frame) {
+		if (item->borderColor().isValid()) {
+			borderPen.setColor(item->borderColor());
+		}
+
+		if (item->borderWidth() > 0) {
+			borderPen.setWidthF(item->borderWidth()*s);
+			borderPen.setStyle(Qt::SolidLine);
+		}
+	}
 
 	switch(type) {
 	case DocumentItem::Frame:
@@ -383,7 +395,12 @@ void DocumentPreviewWidget::paintItem(DocumentItem* item, QPainter& painter) {
 	case DocumentItem::Loop:
 	case DocumentItem::Plugin:
 	case DocumentItem::Text: {
+
 		QRectF rect(pos, s*QSizeF(item->initialWidth(), item->initialHeight()));
+
+		if (type == DocumentItem::Frame and item->fillColor().isValid()) {
+			painter.fillRect(rect, item->fillColor());
+		}
 
 		painter.setPen(borderPen);
 		painter.drawRect(rect);
