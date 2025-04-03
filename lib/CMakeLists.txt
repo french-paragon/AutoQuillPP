@@ -11,6 +11,8 @@ set(LIB_SRC
     jsondocumentdatainterface.cpp
     documentrenderer.h
     documentrenderer.cpp
+	renderplugin.h
+	renderplugin.cpp
     ressources.qrc
 )
 

@@ -8,6 +8,7 @@
 #include "documenttemplate.h"
 #include "documentitem.h"
 #include "documentdatainterface.h"
+#include "renderplugin.h"
 
 DocumentRenderer::DocumentRenderer(DocumentTemplate* docTemplate) :
 	_docTemplate(docTemplate),
@@ -29,7 +30,9 @@ DocumentRenderer::~DocumentRenderer() {
 	}
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface* dataInterface, QString const& filename) {
+DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface* dataInterface, RenderPluginManager const& pluginManager, QString const& filename) {
+
+	_pluginManager = &pluginManager;
 
 	if (dataInterface == nullptr) {
 		return RenderingStatus{MissingData, QObject::tr("Missing data interface")};
@@ -849,6 +852,57 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(itemRenderInfos&
 
 	return status;
 }
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+
+	if (_pluginManager == nullptr) {
+		return RenderingStatus{OtherError, QObject::tr("Missing plugin manager")};
+	}
+
+	RenderPlugin const* plugin = _pluginManager->getPlugin(itemInfos.item->data());
+
+	if (plugin == nullptr) {
+		return RenderingStatus{OtherError, QObject::tr("Requested missing plugin")};
+	}
+
+	if (itemInfos.item == nullptr) {
+		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
+	}
+
+	QSizeF itemInitialSize = itemInfos.item->initialSize();
+
+	if (itemInitialSize.width() > _renderContext.region.width() or
+		itemInitialSize.height() > _renderContext.region.height()) {
+		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Image: %1").arg(itemInfos.item->objectName())};
+	}
+
+	if (itemInitialSize.width() < itemInfos.maxSize.width()) {
+		itemInitialSize.rwidth() = itemInfos.maxSize.width();
+	}
+
+	if (itemInitialSize.height() < itemInfos.maxSize.height()) {
+		itemInitialSize.rheight() = itemInfos.maxSize.height();
+	}
+
+	itemInitialSize = itemInitialSize.boundedTo(_renderContext.region);
+
+	QPointF origin = _renderContext.origin + itemInfos.item->origin();
+
+	if (_renderContext.direction == DocumentItem::Right2Left) {
+		origin.rx() = _renderContext.origin.x() - itemInfos.item->origin().x();
+	}
+
+	if (_renderContext.direction == DocumentItem::Bottom2Top) {
+		origin.ry() = _renderContext.origin.y() - itemInfos.item->origin().y();
+	}
+
+	QRectF requiredRegion = plugin->getMinimalSpace(QRectF(origin, itemInitialSize), itemInfos.itemValue);
+
+	itemInfos.currentOrigin = requiredRegion.topLeft();
+	itemInfos.currentSize = requiredRegion.size();
+	itemInfos.renderStatus = Success;
+
+	return{Success};
+}
 
 
 DocumentRenderer::RenderingStatus DocumentRenderer::renderItem(itemRenderInfos& itemInfos) {
@@ -1109,5 +1163,25 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(itemRenderInfos&
     RenderingStatus status{Success, "", rectangle.size()};
 
     return status;
+
+}
+
+DocumentRenderer::RenderingStatus DocumentRenderer::renderPlugin(itemRenderInfos& itemInfos) {
+
+	if (_pluginManager == nullptr) {
+		return RenderingStatus{OtherError, QObject::tr("Missing plugin manager")};
+	}
+
+	RenderPlugin const* plugin = _pluginManager->getPlugin(itemInfos.item->data());
+
+	if (plugin == nullptr) {
+		return RenderingStatus{OtherError, QObject::tr("Requested missing plugin")};
+	}
+
+	if (itemInfos.item == nullptr) {
+		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
+	}
+
+	return plugin->renderItem(QRectF(itemInfos.currentOrigin, itemInfos.currentSize), *_painter, itemInfos.itemValue);
 
 }

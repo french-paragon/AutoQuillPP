@@ -13,6 +13,7 @@ class QPdfWriter;
 
 class DocumentTemplate;
 class DocumentDataInterface;
+class RenderPluginManager;
 
 class DocumentRenderer
 {
@@ -37,7 +38,7 @@ public :
 	DocumentRenderer(DocumentTemplate* docTemplate);
 	~DocumentRenderer();
 
-	RenderingStatus render(DocumentDataInterface* dataInterface, QString const& filename);
+	RenderingStatus render(DocumentDataInterface* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
 
 protected :
 
@@ -82,6 +83,7 @@ protected :
 	RenderingStatus layoutFrame(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 	RenderingStatus layoutText(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 	RenderingStatus layoutImage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutPlugin(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
 
 	RenderingStatus renderItem(itemRenderInfos& itemInfos);
 
@@ -92,6 +94,7 @@ protected :
 	RenderingStatus renderFrame(itemRenderInfos& itemInfos);
 	RenderingStatus renderText(itemRenderInfos& itemInfos);
 	RenderingStatus renderImage(itemRenderInfos& itemInfos);
+	RenderingStatus renderPlugin(itemRenderInfos& itemInfos);
 
 	QPainter* _painter;
 	QPdfWriter* _writer;
@@ -100,6 +103,7 @@ protected :
 
 	DocumentTemplate* _docTemplate;
 
+	RenderPluginManager const* _pluginManager;
 	RenderContext _renderContext;
 };
 

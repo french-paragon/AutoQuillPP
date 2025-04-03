@@ -3,6 +3,7 @@
 #include "../lib/documenttemplate.h"
 #include "../lib/jsondocumentdatainterface.h"
 #include "../lib/documentrenderer.h"
+#include "../lib/renderplugin.h"
 
 #include "mainwindows.h"
 
@@ -81,8 +82,9 @@ bool exportTemplateUsingJson(DocumentTemplate* documentTemplate,
     JsonDocumentDataInterface dataInterface(obj);
 
     DocumentRenderer renderer(documentTemplate);
+	RenderPluginManager defaultPluginManager;
 
-	auto rendering_status = renderer.render(&dataInterface, outFileName);
+	auto rendering_status = renderer.render(&dataInterface, defaultPluginManager, outFileName);
 
 	QTextStream out(stdout);
 
