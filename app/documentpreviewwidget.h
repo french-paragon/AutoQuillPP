@@ -8,8 +8,10 @@
 
 #include <cmath>
 
-class DocumentTemplate;
-class DocumentItem;
+namespace AutoQuill {
+	class DocumentTemplate;
+	class DocumentItem;
+}
 
 class DocumentPreviewWidget : public QWidget
 {
@@ -17,7 +19,7 @@ class DocumentPreviewWidget : public QWidget
 public:
 	explicit DocumentPreviewWidget(QWidget *parent = nullptr);
 
-	void setDocumentTemplate(DocumentTemplate* docTemplate);
+	void setDocumentTemplate(AutoQuill::DocumentTemplate* docTemplate);
 
 	inline qreal scale() const {
 		return std::pow(scaleBase,_scale_level);
@@ -126,7 +128,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *event) override;
 
 	void paintPage(QPointF offset, int pageId, QPainter& painter);
-	void paintItem(DocumentItem* item, QPainter& painter);
+	void paintItem(AutoQuill::DocumentItem* item, QPainter& painter);
 
 	static const qreal scaleBase;
 	static const qreal scaleLevelMax;
@@ -138,7 +140,7 @@ protected:
 
 	QPointF _viewOrigin;
 
-	DocumentTemplate* _documentTemplate;
+	AutoQuill::DocumentTemplate* _documentTemplate;
 
 private:
 

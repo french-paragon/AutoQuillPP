@@ -6,6 +6,8 @@
 
 #include <QJsonValue>
 
+namespace AutoQuill {
+
 class DocumentItem;
 
 class DocumentTemplate : public QObject
@@ -83,5 +85,7 @@ public:
 protected:
 	DocumentTemplate* _root;
 };
+
+} // namespace AutoQuill
 
 #endif // DOCUMENTTEMPLATE_H

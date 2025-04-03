@@ -11,6 +11,8 @@ class QPdfWriter;
 #include "./documentitem.h"
 #include "./documentdatainterface.h"
 
+namespace AutoQuill {
+
 class DocumentTemplate;
 class DocumentDataInterface;
 class RenderPluginManager;
@@ -106,5 +108,7 @@ protected :
 	RenderPluginManager const* _pluginManager;
 	RenderContext _renderContext;
 };
+
+} // namespace AutoQuill
 
 #endif // DOCUMENTRENDERER_H

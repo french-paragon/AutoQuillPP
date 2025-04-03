@@ -15,8 +15,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-bool exportTemplateUsingJson(DocumentTemplate* documentTemplate,
-                             MainWindows* mainWindows) {
+bool exportTemplateUsingJson(AutoQuill::DocumentTemplate *documentTemplate,
+							 MainWindows* mainWindows) {
 
     if (mainWindows == nullptr) {
         return false;
@@ -79,16 +79,16 @@ bool exportTemplateUsingJson(DocumentTemplate* documentTemplate,
 
     QJsonObject obj = doc.object();
 
-    JsonDocumentDataInterface dataInterface(obj);
+	AutoQuill::JsonDocumentDataInterface dataInterface(obj);
 
-    DocumentRenderer renderer(documentTemplate);
-	RenderPluginManager defaultPluginManager;
+	AutoQuill::DocumentRenderer renderer(documentTemplate);
+	AutoQuill::RenderPluginManager defaultPluginManager;
 
 	auto rendering_status = renderer.render(&dataInterface, defaultPluginManager, outFileName);
 
 	QTextStream out(stdout);
 
-	if (rendering_status.status == DocumentRenderer::Status::Success) {
+	if (rendering_status.status == AutoQuill::DocumentRenderer::Status::Success) {
 		out << "Successfully rendered document" << Qt::endl;
 	} else {
 		out << "The renderer encountered some errors: " << rendering_status.message << Qt::endl;

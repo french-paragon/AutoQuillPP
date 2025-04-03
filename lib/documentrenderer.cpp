@@ -10,6 +10,8 @@
 #include "documentdatainterface.h"
 #include "renderplugin.h"
 
+namespace AutoQuill {
+
 DocumentRenderer::DocumentRenderer(DocumentTemplate* docTemplate) :
 	_docTemplate(docTemplate),
 	_writer(nullptr),
@@ -1185,3 +1187,5 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPlugin(itemRenderInfos
 	return plugin->renderItem(QRectF(itemInfos.currentOrigin, itemInfos.currentSize), *_painter, itemInfos.itemValue);
 
 }
+
+} // namespace AutoQuill

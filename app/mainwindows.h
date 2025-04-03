@@ -4,8 +4,10 @@
 #include <QMainWindow>
 #include <QModelIndex>
 
-class DocumentTemplate;
-class DocumentTemplateModel;
+namespace AutoQuill {
+	class DocumentTemplate;
+	class DocumentTemplateModel;
+}
 
 class DocumentPreviewWidget;
 
@@ -19,8 +21,8 @@ class MainWindows : public QMainWindow
 public:
     MainWindows(QWidget* parent = nullptr);
 
-	DocumentTemplate* currentDocumentTemplate() const;
-	void setCurrentDocumentTemplate(DocumentTemplate* docTemplate);
+	AutoQuill::DocumentTemplate* currentDocumentTemplate() const;
+	void setCurrentDocumentTemplate(AutoQuill::DocumentTemplate* docTemplate);
 
 protected:
 
@@ -51,8 +53,8 @@ protected:
 
 	DocumentPreviewWidget* _docPreviewWidget;
 
-	DocumentTemplate* _currentDocumentTemplate;
-    DocumentTemplateModel* _documentTemplateModel;
+	AutoQuill::DocumentTemplate* _currentDocumentTemplate;
+	AutoQuill::DocumentTemplateModel* _documentTemplateModel;
 };
 
 #endif // MAINWINDOWS_H

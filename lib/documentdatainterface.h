@@ -6,6 +6,8 @@
 
 #include <functional>
 
+namespace AutoQuill {
+
 class DocumentValue
 {
 public:
@@ -74,5 +76,7 @@ public:
     virtual DocumentValue getValue(QString const& key) = 0;
 
 };
+
+} // namespace AutoQuill
 
 #endif // DOCUMENTDATAINTERFACE_H

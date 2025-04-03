@@ -2,6 +2,8 @@
 
 #include <QJsonArray>
 
+namespace AutoQuill {
+
 JsonDocumentDataInterface::JsonDocumentDataInterface(const QJsonObject &data, QObject *parent) :
     DocumentDataInterface(parent),
     _data(data)
@@ -72,3 +74,5 @@ DocumentValue JsonDocumentDataInterface::getValue(QString const& key) {
     return getValueFromKey(_data, key);
 
 }
+
+} // namespace AutoQuill

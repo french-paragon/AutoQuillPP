@@ -9,6 +9,8 @@
 #include <QJsonDocument>
 #include <QFile>
 
+namespace AutoQuill {
+
 DocumentTemplate::DocumentTemplate(QObject *parent) :
     QObject(parent),
     _currentSavePath("")
@@ -433,3 +435,5 @@ void DocumentTemplateModel::setDocumentTemplate(DocumentTemplate* docTemplate) {
 	connect(_root, &DocumentTemplate::reseted, this, &DocumentTemplateModel::endResetModel);
 	endResetModel();
 }
+
+} // namespace AutoQuill

@@ -23,8 +23,10 @@ set(CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
 set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
-set(AUTOQUILL_SDK_NAME "AutoQuillPPSdk")
-set(AUTOQUILL_SDK_EXPORTNAME "AutoQuillPPSdkTargets")
+set(AUTOQUILL_SDK_NAME "AutoQuillPP")
+set(AUTOQUILL_SDK_EXPORTNAME "AutoQuillPPTargets")
+
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}:$ORIGIN/../../${CMAKE_INSTALL_LIBDIR}")
 
 #find usefull libraries
 find_package(Qt5 COMPONENTS Widgets Core Test PrintSupport Svg REQUIRED)
@@ -41,3 +43,32 @@ add_subdirectory(lib)
 
 #configure app
 add_subdirectory(app)
+
+#installing
+
+install(EXPORT ${AUTOQUILL_SDK_EXPORTNAME}
+  DESTINATION ${CMAKE_INSTALL_CMAKEDIR}/cmake/${AUTOQUILL_SDK_NAME}
+  NAMESPACE ${AUTOQUILL_SDK_NAME}::
+  FILE AutoQuillSDKTargets.cmake # ensure the name is different than the AutoQuillSDKConfig.cmake file
+  )
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+  "cmake/Config.cmake.in"
+  "${AUTOQUILL_SDK_NAME}Config.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_CMAKEDIR}/cmake/${AUTOQUILL_SDK_NAME}
+  PATH_VARS
+    CMAKE_INSTALL_LIBDIR
+  )
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/${AUTOQUILL_SDK_NAME}ConfigVersion.cmake"
+  VERSION "0.0"
+  COMPATIBILITY AnyNewerVersion
+)
+
+install(FILES
+	${CMAKE_CURRENT_BINARY_DIR}/${AUTOQUILL_SDK_NAME}Config.cmake
+	${CMAKE_CURRENT_BINARY_DIR}/${AUTOQUILL_SDK_NAME}ConfigVersion.cmake
+	DESTINATION ${CMAKE_INSTALL_CMAKEDIR}/cmake/${AUTOQUILL_SDK_NAME} )

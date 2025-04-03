@@ -6,6 +6,8 @@
 #include <QPoint>
 #include <QSize>
 
+namespace AutoQuill {
+
 class DocumentItem : public QObject
 {
     Q_OBJECT
@@ -562,5 +564,7 @@ protected:
 
 	QList<DocumentItem*> _items;
 };
+
+} // namespace AutoQuill
 
 #endif // DOCUMENTITEM_H

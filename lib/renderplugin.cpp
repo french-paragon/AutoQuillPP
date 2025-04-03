@@ -2,6 +2,8 @@
 
 #include <QSet>
 
+namespace AutoQuill {
+
 RenderPlugin::RenderPlugin()
 {
 
@@ -45,3 +47,5 @@ bool RenderPluginManager::registerPlugin(QString const& key, RenderPlugin* plugi
 	_map.insert(key, plugin);
 	return true;
 }
+
+} // namespace AutoQuill

@@ -26,7 +26,7 @@ DocumentPreviewWidget::DocumentPreviewWidget(QWidget *parent)
 
 }
 
-void DocumentPreviewWidget::setDocumentTemplate(DocumentTemplate* docTemplate) {
+void DocumentPreviewWidget::setDocumentTemplate(AutoQuill::DocumentTemplate* docTemplate) {
 
 	if (_documentTemplate == docTemplate) {
 		return;
@@ -45,9 +45,9 @@ QSizeF DocumentPreviewWidget::scrollableRegion() const {
 
 	if (_documentTemplate != nullptr) {
 		for (int i = 0; i < _documentTemplate->subitems().size(); i++) {
-			DocumentItem* item = _documentTemplate->subitems()[i];
+			AutoQuill::DocumentItem* item = _documentTemplate->subitems()[i];
 
-			while (item->getType() != DocumentItem::Page) {
+			while (item->getType() != AutoQuill::DocumentItem::Page) {
 				if (item->subitems().isEmpty()) {
 					item = nullptr;
 					break;
@@ -100,9 +100,9 @@ void DocumentPreviewWidget::gotoPage(int pageId) {
 
 	for (int i = 0; i < target; i++) {
 
-		DocumentItem* item = _documentTemplate->subitems()[i];
+		AutoQuill::DocumentItem* item = _documentTemplate->subitems()[i];
 
-		while (item->getType() != DocumentItem::Page) {
+		while (item->getType() != AutoQuill::DocumentItem::Page) {
 
 			if (item->subitems().isEmpty()) {
 				item = nullptr;
@@ -119,9 +119,9 @@ void DocumentPreviewWidget::gotoPage(int pageId) {
 		}
 	}
 
-	DocumentItem* item = _documentTemplate->subitems()[pageId];
+	AutoQuill::DocumentItem* item = _documentTemplate->subitems()[pageId];
 
-	while (item->getType() != DocumentItem::Page) {
+	while (item->getType() != AutoQuill::DocumentItem::Page) {
 		if (item->subitems().isEmpty()) {
 			item = nullptr;
 			break;
@@ -166,9 +166,9 @@ void DocumentPreviewWidget::paintEvent(QPaintEvent *event) {
 
 		paintPage(offset, i, painter);
 
-		DocumentItem* item = _documentTemplate->subitems()[i];
+		AutoQuill::DocumentItem* item = _documentTemplate->subitems()[i];
 
-		while (item->getType() != DocumentItem::Page) {
+		while (item->getType() != AutoQuill::DocumentItem::Page) {
 
 			if (item->subitems().isEmpty()) {
 				item = nullptr;
@@ -292,9 +292,9 @@ void DocumentPreviewWidget::paintPage(QPointF offset, int pageId, QPainter& pain
 		return;
 	}
 
-	DocumentItem* item = _documentTemplate->subitems()[pageId];
+	AutoQuill::DocumentItem* item = _documentTemplate->subitems()[pageId];
 
-	while (item->getType() != DocumentItem::Page) {
+	while (item->getType() != AutoQuill::DocumentItem::Page) {
 
 		if (item->subitems().isEmpty()) {
 			item = nullptr;
@@ -330,7 +330,7 @@ void DocumentPreviewWidget::paintPage(QPointF offset, int pageId, QPainter& pain
 
 	painter.setWorldTransform(initial); //reset the transform;
 }
-void DocumentPreviewWidget::paintItem(DocumentItem* item, QPainter& painter) {
+void DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& painter) {
 
 	constexpr int iconSize = 30;
 
@@ -342,24 +342,24 @@ void DocumentPreviewWidget::paintItem(DocumentItem* item, QPainter& painter) {
 	static QPixmap pluginIcon = QIcon(":/icons/plugin.svg").pixmap(iconSize, iconSize);
 	static QPixmap textIcon = QIcon(":/icons/text.svg").pixmap(iconSize, iconSize);
 
-	DocumentItem::Type type = item->getType();
+	AutoQuill::DocumentItem::Type type = item->getType();
 
-	auto iconSelect = [&] (DocumentItem::Type type) -> QPixmap& {
+	auto iconSelect = [&] (AutoQuill::DocumentItem::Type type) -> QPixmap& {
 
 		switch(type) {
-		case DocumentItem::Condition:
+		case AutoQuill::DocumentItem::Condition:
 			return conditionIcon;
-		case DocumentItem::Image:
+		case AutoQuill::DocumentItem::Image:
 			return imageIcon;
-		case DocumentItem::List:
+		case AutoQuill::DocumentItem::List:
 			return listIcon;
-		case DocumentItem::Loop:
+		case AutoQuill::DocumentItem::Loop:
 			return loopIcon;
-		case DocumentItem::Plugin:
+		case AutoQuill::DocumentItem::Plugin:
 			return pluginIcon;
-		case DocumentItem::Text:
+		case AutoQuill::DocumentItem::Text:
 			return textIcon;
-		case DocumentItem::Frame:
+		case AutoQuill::DocumentItem::Frame:
 		default:
 			return frameIcon;
 		}
@@ -377,7 +377,7 @@ void DocumentPreviewWidget::paintItem(DocumentItem* item, QPainter& painter) {
 	qreal s = 1/scale();
 	pos *= s;
 
-	if (item->getType() == DocumentItem::Frame) {
+	if (item->getType() == AutoQuill::DocumentItem::Frame) {
 		if (item->borderColor().isValid()) {
 			borderPen.setColor(item->borderColor());
 		}
@@ -389,16 +389,16 @@ void DocumentPreviewWidget::paintItem(DocumentItem* item, QPainter& painter) {
 	}
 
 	switch(type) {
-	case DocumentItem::Frame:
-	case DocumentItem::Image:
-	case DocumentItem::List:
-	case DocumentItem::Loop:
-	case DocumentItem::Plugin:
-	case DocumentItem::Text: {
+	case AutoQuill::DocumentItem::Frame:
+	case AutoQuill::DocumentItem::Image:
+	case AutoQuill::DocumentItem::List:
+	case AutoQuill::DocumentItem::Loop:
+	case AutoQuill::DocumentItem::Plugin:
+	case AutoQuill::DocumentItem::Text: {
 
 		QRectF rect(pos, s*QSizeF(item->initialWidth(), item->initialHeight()));
 
-		if (type == DocumentItem::Frame and item->fillColor().isValid()) {
+		if (type == AutoQuill::DocumentItem::Frame and item->fillColor().isValid()) {
 			painter.fillRect(rect, item->fillColor());
 		}
 

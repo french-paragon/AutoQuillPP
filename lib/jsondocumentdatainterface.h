@@ -5,6 +5,8 @@
 
 #include <QJsonObject>
 
+namespace AutoQuill {
+
 class JsonDocumentDataInterface : public DocumentDataInterface
 {
 public:
@@ -16,5 +18,7 @@ protected:
 
     QJsonObject _data;
 };
+
+} // namespace AutoQuill
 
 #endif // JSONDOCUMENTDATAINTERFACE_H

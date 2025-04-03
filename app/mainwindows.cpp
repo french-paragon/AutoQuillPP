@@ -39,7 +39,7 @@ MainWindows::MainWindows(QWidget *parent) :
 	QMainWindow(parent),
 	_currentDocumentTemplate(nullptr)
 {
-	DocumentTemplate* documentTemplate = new DocumentTemplate(this);
+	AutoQuill::DocumentTemplate* documentTemplate = new AutoQuill::DocumentTemplate(this);
 
     //setup menu
 
@@ -99,7 +99,7 @@ MainWindows::MainWindows(QWidget *parent) :
 
 	addDockWidget(Qt::DockWidgetArea::RightDockWidgetArea, _itemPropertiesDockWidget);
 
-	_documentTemplateModel = new DocumentTemplateModel(this);
+	_documentTemplateModel = new AutoQuill::DocumentTemplateModel(this);
 	_projectTreeViewWidget->setModel(_documentTemplateModel);
 
 	//setup main widgets
@@ -114,11 +114,11 @@ MainWindows::MainWindows(QWidget *parent) :
 }
 
 
-DocumentTemplate* MainWindows::currentDocumentTemplate() const {
+AutoQuill::DocumentTemplate* MainWindows::currentDocumentTemplate() const {
 	return _currentDocumentTemplate;
 }
 
-void MainWindows::setCurrentDocumentTemplate(DocumentTemplate* docTemplate) {
+void MainWindows::setCurrentDocumentTemplate(AutoQuill::DocumentTemplate* docTemplate) {
 
 	if (_currentDocumentTemplate != docTemplate) {
 
@@ -137,15 +137,15 @@ MainWindows::InsertPos MainWindows::currentInsertPos() {
 		return {QModelIndex(), -1};
 	}
 
-	DocumentItem* item = qvariant_cast<DocumentItem*>(idx.data(DocumentTemplateModel::ItemRole));
+	AutoQuill::DocumentItem* item = qvariant_cast<AutoQuill::DocumentItem*>(idx.data(AutoQuill::DocumentTemplateModel::ItemRole));
 
 	if (item == nullptr) {
 		return {QModelIndex(), -1};
 	}
 
-	DocumentItem::Type type = item->getType();
+	AutoQuill::DocumentItem::Type type = item->getType();
 
-	if (DocumentItem::typeAcceptChildrens(type)) {
+	if (AutoQuill::DocumentItem::typeAcceptChildrens(type)) {
 		return {idx, -1};
 	}
 
@@ -159,12 +159,12 @@ void MainWindows::refreshNewItemMenu() {
 
 	InsertPos insertPos = currentInsertPos();
 
-	QList<DocumentItem::Type> creableTypes;
+	QList<AutoQuill::DocumentItem::Type> creableTypes;
 
 	if (insertPos.parent == QModelIndex()) {
-		creableTypes = DocumentItem::supportedRootTypes();
+		creableTypes = AutoQuill::DocumentItem::supportedRootTypes();
 	} else {
-		DocumentItem* item = qvariant_cast<DocumentItem*>(insertPos.parent.data(DocumentTemplateModel::ItemRole));
+		AutoQuill::DocumentItem* item = qvariant_cast<AutoQuill::DocumentItem*>(insertPos.parent.data(AutoQuill::DocumentTemplateModel::ItemRole));
 
 		if (item != nullptr) {
 			creableTypes = item->supportedSubTypes();
@@ -178,10 +178,10 @@ void MainWindows::refreshNewItemMenu() {
 
 	_newItemButton->menu()->clear();
 
-	for (DocumentItem::Type & t : creableTypes) {
+	for (AutoQuill::DocumentItem::Type & t : creableTypes) {
 
-		QIcon icon = DocumentItem::iconForType(t);
-		QString text = tr("%1").arg(DocumentItem::typeToString(t));
+		QIcon icon = AutoQuill::DocumentItem::iconForType(t);
+		QString text = tr("%1").arg(AutoQuill::DocumentItem::typeToString(t));
 
 		QAction* createItemAction = _newItemButton->menu()->addAction(icon, text);
 
@@ -193,12 +193,12 @@ void MainWindows::refreshNewItemMenu() {
 	if (insertPos.parent != QModelIndex()) {
 		_newItemButton->menu()->addSeparator();
 
-		creableTypes = DocumentItem::supportedRootTypes();
+		creableTypes = AutoQuill::DocumentItem::supportedRootTypes();
 
-		for (DocumentItem::Type & t : creableTypes) {
+		for (AutoQuill::DocumentItem::Type & t : creableTypes) {
 
-			QIcon icon = DocumentItem::iconForType(t);
-			QString text = tr("Top Level %1").arg(DocumentItem::typeToString(t));
+			QIcon icon = AutoQuill::DocumentItem::iconForType(t);
+			QString text = tr("Top Level %1").arg(AutoQuill::DocumentItem::typeToString(t));
 
 			QAction* createItemAction = _newItemButton->menu()->addAction(icon, text);
 
@@ -213,17 +213,17 @@ void MainWindows::refreshNewItemMenu() {
 }
 void MainWindows::addDocumentItem(int t, bool topLevel) {
 
-	DocumentItem::Type type = static_cast<DocumentItem::Type>(t);
+	AutoQuill::DocumentItem::Type type = static_cast<AutoQuill::DocumentItem::Type>(t);
 
 	InsertPos insertPos = (topLevel) ? InsertPos{QModelIndex(), -1} : currentInsertPos();
 
-	DocumentItem* parentItem = nullptr;
-	QList<DocumentItem::Type> creableTypes;
+	AutoQuill::DocumentItem* parentItem = nullptr;
+	QList<AutoQuill::DocumentItem::Type> creableTypes;
 
 	if (insertPos.parent == QModelIndex()) {
-		creableTypes = DocumentItem::supportedRootTypes();
+		creableTypes = AutoQuill::DocumentItem::supportedRootTypes();
 	} else {
-		 parentItem = qvariant_cast<DocumentItem*>(insertPos.parent.data(DocumentTemplateModel::ItemRole));
+		 parentItem = qvariant_cast<AutoQuill::DocumentItem*>(insertPos.parent.data(AutoQuill::DocumentTemplateModel::ItemRole));
 
 		if (parentItem != nullptr) {
 			creableTypes = parentItem->supportedSubTypes();
@@ -234,7 +234,7 @@ void MainWindows::addDocumentItem(int t, bool topLevel) {
 		return;
 	}
 
-	DocumentItem* docItem = new DocumentItem(type, _currentDocumentTemplate);
+	AutoQuill::DocumentItem* docItem = new AutoQuill::DocumentItem(type, _currentDocumentTemplate);
 
 	_documentTemplateModel->insertItem(insertPos.parent, insertPos.row, docItem);
 }
@@ -256,7 +256,7 @@ void MainWindows::refreshPropertiesWidget() {
 		return;
 	}
 
-	DocumentItem* item = qvariant_cast<DocumentItem*>(currentIdx.data(DocumentTemplateModel::ItemRole));
+	AutoQuill::DocumentItem* item = qvariant_cast<AutoQuill::DocumentItem*>(currentIdx.data(AutoQuill::DocumentTemplateModel::ItemRole));
 
 	if (item == nullptr) {
 		return;
@@ -271,28 +271,28 @@ void MainWindows::refreshPropertiesWidget() {
 
 	layout->addRow(tr("Name"), nameEditLine);
 
-	DocumentItem::Type type = item->getType();
+	AutoQuill::DocumentItem::Type type = item->getType();
 
 	if (item->parentPage() != nullptr) { //item belongs to a page
 
 		QComboBox* overflowBehaviorSelect = new QComboBox(widget);
 
-		overflowBehaviorSelect->addItem(tr("Continue on new page"), DocumentItem::OverflowBehavior::OverflowOnNewPage);
-		overflowBehaviorSelect->addItem(tr("Copy on new page"), DocumentItem::OverflowBehavior::CopyOnNewPages);
-		overflowBehaviorSelect->addItem(tr("Draw only once"), DocumentItem::OverflowBehavior::DrawFirstInstanceOnly);
+		overflowBehaviorSelect->addItem(tr("Continue on new page"), AutoQuill::DocumentItem::OverflowBehavior::OverflowOnNewPage);
+		overflowBehaviorSelect->addItem(tr("Copy on new page"), AutoQuill::DocumentItem::OverflowBehavior::CopyOnNewPages);
+		overflowBehaviorSelect->addItem(tr("Draw only once"), AutoQuill::DocumentItem::OverflowBehavior::DrawFirstInstanceOnly);
 
 		int currentIndex = overflowBehaviorSelect->findData(item->overflowBehavior());
 		overflowBehaviorSelect->setCurrentIndex(currentIndex);
 
 		connect(overflowBehaviorSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, overflowBehaviorSelect] () {
-			item->setOverflowBehavior(static_cast<DocumentItem::OverflowBehavior>(overflowBehaviorSelect->currentData().toInt()));
+			item->setOverflowBehavior(static_cast<AutoQuill::DocumentItem::OverflowBehavior>(overflowBehaviorSelect->currentData().toInt()));
 		});
 
 		layout->addRow(tr("Overflow behavior"), overflowBehaviorSelect);
 
 	}
 
-	if (type != DocumentItem::Page and item->parentDocumentItem() != nullptr) {
+	if (type != AutoQuill::DocumentItem::Page and item->parentDocumentItem() != nullptr) {
 
 		QDoubleSpinBox* posXEdit = new QDoubleSpinBox(widget);
 		QDoubleSpinBox* posYEdit = new QDoubleSpinBox(widget);
@@ -307,17 +307,17 @@ void MainWindows::refreshPropertiesWidget() {
 		posYEdit->setValue(item->posY());
 
 		connect(posXEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
-				item, &DocumentItem::setPosX);
+				item, &AutoQuill::DocumentItem::setPosX);
 
 		connect(posYEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
-				item, &DocumentItem::setPosY);
+				item, &AutoQuill::DocumentItem::setPosY);
 
 		layout->addRow(tr("Position X"), posXEdit);
 		layout->addRow(tr("Position Y"), posYEdit);
 
 	}
 
-	if ((type != DocumentItem::Loop and type != DocumentItem::Condition) or
+	if ((type != AutoQuill::DocumentItem::Loop and type != AutoQuill::DocumentItem::Condition) or
 			item->parentDocumentItem() != nullptr) {
 
 		QDoubleSpinBox* widthEdit = new QDoubleSpinBox(widget);
@@ -333,15 +333,15 @@ void MainWindows::refreshPropertiesWidget() {
 		heightEdit->setValue(item->initialHeight());
 
 		connect(widthEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
-				item, &DocumentItem::setInitialWidth);
+				item, &AutoQuill::DocumentItem::setInitialWidth);
 
 		connect(heightEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
-				item, &DocumentItem::setInitialHeight);
+				item, &AutoQuill::DocumentItem::setInitialHeight);
 
 		layout->addRow(tr("Initial Width"), widthEdit);
 		layout->addRow(tr("Initial Height"), heightEdit);
 
-		if (type != DocumentItem::Page) {
+		if (type != AutoQuill::DocumentItem::Page) {
 			QDoubleSpinBox* maxWidthEdit = new QDoubleSpinBox(widget);
 			QDoubleSpinBox* maxHeightEdit = new QDoubleSpinBox(widget);
 
@@ -355,10 +355,10 @@ void MainWindows::refreshPropertiesWidget() {
             maxHeightEdit->setValue(item->maxHeight());
 
 			connect(maxWidthEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
-					item, &DocumentItem::setMaxWidth);
+					item, &AutoQuill::DocumentItem::setMaxWidth);
 
 			connect(maxHeightEdit, static_cast<void(QDoubleSpinBox::*)(qreal)>(&QDoubleSpinBox::valueChanged),
-					item, &DocumentItem::setMaxHeight);
+					item, &AutoQuill::DocumentItem::setMaxHeight);
 
 			layout->addRow(tr("Max Width"), maxWidthEdit);
 			layout->addRow(tr("Max Height"), maxHeightEdit);
@@ -366,7 +366,7 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
-	if (type == DocumentItem::Frame) {
+	if (type == AutoQuill::DocumentItem::Frame) {
 
 		QDoubleSpinBox* lineWidthEdit = new QDoubleSpinBox(widget);
 		QPushButton* lineColorEdit = new QPushButton(widget);
@@ -413,7 +413,7 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
-	if (type == DocumentItem::Text) {
+	if (type == AutoQuill::DocumentItem::Text) {
 
 		QFontComboBox* fontSelect = new QFontComboBox(widget);
 
@@ -433,15 +433,15 @@ void MainWindows::refreshPropertiesWidget() {
 
 		QComboBox* weightSelect = new QComboBox(widget);
 
-		weightSelect->addItem(tr("Thin"), DocumentItem::TextWeight::Thin);
-		weightSelect->addItem(tr("ExtraLight"), DocumentItem::TextWeight::ExtraLight);
-		weightSelect->addItem(tr("Light"), DocumentItem::TextWeight::Light);
-		weightSelect->addItem(tr("Normal"), DocumentItem::TextWeight::Normal);
-		weightSelect->addItem(tr("Medium"), DocumentItem::TextWeight::Medium);
-		weightSelect->addItem(tr("DemiBold"), DocumentItem::TextWeight::DemiBold);
-		weightSelect->addItem(tr("Bold"), DocumentItem::TextWeight::Bold);
-		weightSelect->addItem(tr("ExtraBold"), DocumentItem::TextWeight::ExtraBold);
-		weightSelect->addItem(tr("Black"), DocumentItem::TextWeight::Black);
+		weightSelect->addItem(tr("Thin"), AutoQuill::DocumentItem::TextWeight::Thin);
+		weightSelect->addItem(tr("ExtraLight"), AutoQuill::DocumentItem::TextWeight::ExtraLight);
+		weightSelect->addItem(tr("Light"), AutoQuill::DocumentItem::TextWeight::Light);
+		weightSelect->addItem(tr("Normal"), AutoQuill::DocumentItem::TextWeight::Normal);
+		weightSelect->addItem(tr("Medium"), AutoQuill::DocumentItem::TextWeight::Medium);
+		weightSelect->addItem(tr("DemiBold"), AutoQuill::DocumentItem::TextWeight::DemiBold);
+		weightSelect->addItem(tr("Bold"), AutoQuill::DocumentItem::TextWeight::Bold);
+		weightSelect->addItem(tr("ExtraBold"), AutoQuill::DocumentItem::TextWeight::ExtraBold);
+		weightSelect->addItem(tr("Black"), AutoQuill::DocumentItem::TextWeight::Black);
 
 		int currentIndex = weightSelect->findData(item->fontWeight());
 		weightSelect->setCurrentIndex(currentIndex);
@@ -481,30 +481,30 @@ void MainWindows::refreshPropertiesWidget() {
 		alignJustifyButton->setCheckable(true);
 
 		switch(item->textAlign()) {
-		case DocumentItem::TextAlign::AlignLeft:
+		case AutoQuill::DocumentItem::TextAlign::AlignLeft:
 			alignLeftButton->setChecked(true);
 			break;
-		case DocumentItem::TextAlign::AlignCenter:
+		case AutoQuill::DocumentItem::TextAlign::AlignCenter:
 			alignCenterButton->setChecked(true);
 			break;
-		case DocumentItem::TextAlign::AlignRight:
+		case AutoQuill::DocumentItem::TextAlign::AlignRight:
 			alignRightButton->setChecked(true);
 			break;
-		case DocumentItem::TextAlign::AlignJustify:
+		case AutoQuill::DocumentItem::TextAlign::AlignJustify:
 			alignJustifyButton->setChecked(true);
 			break;
 		default:
 			alignLeftButton->setChecked(true);
 		}
 
-		textAlignmentGroup->addButton(alignLeftButton, DocumentItem::TextAlign::AlignLeft);
-		textAlignmentGroup->addButton(alignCenterButton, DocumentItem::TextAlign::AlignCenter);
-		textAlignmentGroup->addButton(alignRightButton, DocumentItem::TextAlign::AlignRight);
-		textAlignmentGroup->addButton(alignJustifyButton, DocumentItem::TextAlign::AlignJustify);
+		textAlignmentGroup->addButton(alignLeftButton, AutoQuill::DocumentItem::TextAlign::AlignLeft);
+		textAlignmentGroup->addButton(alignCenterButton, AutoQuill::DocumentItem::TextAlign::AlignCenter);
+		textAlignmentGroup->addButton(alignRightButton, AutoQuill::DocumentItem::TextAlign::AlignRight);
+		textAlignmentGroup->addButton(alignJustifyButton, AutoQuill::DocumentItem::TextAlign::AlignJustify);
 
 		connect(textAlignmentGroup, &QButtonGroup::idToggled, item, [item] (int id, bool checked) {
 			if (checked) {
-				item->setTextAlign(static_cast<DocumentItem::TextAlign>(id));
+				item->setTextAlign(static_cast<AutoQuill::DocumentItem::TextAlign>(id));
 			}
 		});
 
@@ -525,10 +525,10 @@ void MainWindows::refreshPropertiesWidget() {
     dataEditLine->setText(item->data());
 
     connect(dataKeyEditLine, &QLineEdit::textChanged,
-            item, &DocumentItem::setDataKey);
+			item, &AutoQuill::DocumentItem::setDataKey);
 
     connect(dataEditLine, &QLineEdit::textChanged,
-            item, &DocumentItem::setData);
+			item, &AutoQuill::DocumentItem::setData);
 
     layout->addRow(tr("Data key"), dataKeyEditLine);
     layout->addRow(tr("Data"), dataEditLine);
@@ -543,7 +543,7 @@ void MainWindows::viewItemPage(QModelIndex const& clickedIdx) {
 	}
 
 	bool ok;
-	int pageId = clickedIdx.data(DocumentTemplateModel::ItemPageRole).toInt(&ok);
+	int pageId = clickedIdx.data(AutoQuill::DocumentTemplateModel::ItemPageRole).toInt(&ok);
 
 	if (!ok) {
 		return;
@@ -595,7 +595,7 @@ void MainWindows::saveProjectAs() {
 void MainWindows::openProject() {
 
 	if (_currentDocumentTemplate == nullptr) {
-		DocumentTemplate* documentTemplate = new DocumentTemplate(this);
+		AutoQuill::DocumentTemplate* documentTemplate = new AutoQuill::DocumentTemplate(this);
 		setCurrentDocumentTemplate(documentTemplate);
 	}
 

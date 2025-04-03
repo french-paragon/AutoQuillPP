@@ -6,6 +6,8 @@
 
 #include <QMap>
 
+namespace AutoQuill {
+
 class RenderPlugin
 {
 public:
@@ -34,5 +36,7 @@ protected:
 
 	QMap<QString, RenderPlugin*> _map;
 };
+
+} // namespace AutoQuill
 
 #endif // RENDERPLUGIN_H

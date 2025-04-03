@@ -9,6 +9,8 @@
 #include <QMetaObject>
 #include <QMetaProperty>
 
+namespace AutoQuill {
+
 DocumentItem::DocumentItem(Type type, QObject *parent) :
     QObject(parent),
 	_type(type),
@@ -371,3 +373,5 @@ DocumentItem* DocumentItem::buildFromJson(QJsonValue const& value) {
 
 	return item;
 }
+
+} // namespace AutoQuill

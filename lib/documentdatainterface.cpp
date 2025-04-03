@@ -1,5 +1,7 @@
 #include "documentdatainterface.h"
 
+namespace AutoQuill {
+
 DocumentValue::DocumentValue() :
 	_arraySize(0)
 {
@@ -33,3 +35,5 @@ DocumentDataInterface::DocumentDataInterface(QObject *parent) :
 {
 
 }
+
+} // namespace AutoQuill

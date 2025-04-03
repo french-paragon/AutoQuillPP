@@ -1,10 +1,12 @@
 #ifndef EXPORTACTIONS_H
 #define EXPORTACTIONS_H
 
-class DocumentTemplate;
+namespace AutoQuill {
+	class DocumentTemplate;
+}
 class MainWindows;
 
-bool exportTemplateUsingJson(DocumentTemplate* documentTemplate,
+bool exportTemplateUsingJson(AutoQuill::DocumentTemplate* documentTemplate,
                              MainWindows* mainWindows);
 
 #endif // EXPORTACTIONS_H
