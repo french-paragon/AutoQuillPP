@@ -38,6 +38,8 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(LIB_NAME "lib${PROJECT_NAME}")
 set(PROG_NAME "${PROJECT_NAME}")
 
+set(CMAKE_DEBUG_POSTFIX d)
+
 #configure library
 add_subdirectory(lib)
 
