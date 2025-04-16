@@ -37,7 +37,7 @@ public :
 		QSizeF renderSize;
 	};
 
-	DocumentRenderer(DocumentTemplate* docTemplate);
+	DocumentRenderer(DocumentTemplate const& docTemplate);
 	~DocumentRenderer();
 
 	RenderingStatus render(DocumentDataInterface* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
@@ -103,7 +103,7 @@ protected :
 	int _pagesWritten;
 	int _pagesToWrite;
 
-	DocumentTemplate* _docTemplate;
+	DocumentTemplate const* _docTemplate;
 
 	RenderPluginManager const* _pluginManager;
 	RenderContext _renderContext;

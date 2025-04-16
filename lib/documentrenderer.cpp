@@ -12,8 +12,8 @@
 
 namespace AutoQuill {
 
-DocumentRenderer::DocumentRenderer(DocumentTemplate* docTemplate) :
-	_docTemplate(docTemplate),
+DocumentRenderer::DocumentRenderer(const DocumentTemplate &docTemplate) :
+	_docTemplate(&docTemplate),
 	_writer(nullptr),
 	_painter(nullptr)
 {

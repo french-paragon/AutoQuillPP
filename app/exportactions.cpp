@@ -81,7 +81,7 @@ bool exportTemplateUsingJson(AutoQuill::DocumentTemplate *documentTemplate,
 
 	AutoQuill::JsonDocumentDataInterface dataInterface(obj);
 
-	AutoQuill::DocumentRenderer renderer(documentTemplate);
+	AutoQuill::DocumentRenderer renderer(*documentTemplate);
 	AutoQuill::RenderPluginManager defaultPluginManager;
 
 	auto rendering_status = renderer.render(&dataInterface, defaultPluginManager, outFileName);
