@@ -69,7 +69,7 @@ DocumentValue getValueFromKey(QJsonObject const& obj, QString const& key) {
     return getValueFromValue(val);
 }
 
-DocumentValue JsonDocumentDataInterface::getValue(QString const& key) {
+DocumentValue JsonDocumentDataInterface::getValue(QString const& key) const {
 
     return getValueFromKey(_data, key);
 

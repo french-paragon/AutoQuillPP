@@ -40,7 +40,7 @@ public :
 	DocumentRenderer(DocumentTemplate const& docTemplate);
 	~DocumentRenderer();
 
-	RenderingStatus render(DocumentDataInterface* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
+	RenderingStatus render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
 
 protected :
 
@@ -75,7 +75,7 @@ protected :
 		QVector<itemRenderInfos*> subitemsRenderInfos;
 	};
 
-	RenderingStatus layoutDocument(QVector<itemRenderInfos*> & pages, DocumentDataInterface* dataInterface);
+	RenderingStatus layoutDocument(QVector<itemRenderInfos*> & pages, DocumentDataInterface const* dataInterface);
 	RenderingStatus layoutItem(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr, QVector<itemRenderInfos*>* targetItemPool = nullptr);
 
 	RenderingStatus layoutCondition(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);

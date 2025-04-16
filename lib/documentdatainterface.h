@@ -73,7 +73,7 @@ class DocumentDataInterface : public QObject
 public:
     DocumentDataInterface(QObject* parent = nullptr);
 
-    virtual DocumentValue getValue(QString const& key) = 0;
+	virtual DocumentValue getValue(QString const& key) const = 0;
 
 };
 

@@ -32,7 +32,7 @@ DocumentRenderer::~DocumentRenderer() {
 	}
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface* dataInterface, RenderPluginManager const& pluginManager, QString const& filename) {
+DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename) {
 
 	_pluginManager = &pluginManager;
 
@@ -107,7 +107,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 	return status;
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemRenderInfos*> & topLevel, DocumentDataInterface* dataInterface) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemRenderInfos*> & topLevel, DocumentDataInterface const* dataInterface) {
 
 	if (_docTemplate == nullptr) {
 		return RenderingStatus{OtherError, QObject::tr("Invalid template")};

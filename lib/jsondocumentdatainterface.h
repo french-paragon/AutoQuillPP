@@ -12,7 +12,7 @@ class JsonDocumentDataInterface : public DocumentDataInterface
 public:
     JsonDocumentDataInterface(QJsonObject const& data, QObject* parent = nullptr);
 
-    virtual DocumentValue getValue(QString const& key);
+	virtual DocumentValue getValue(QString const& key) const override;
 
 protected:
 
