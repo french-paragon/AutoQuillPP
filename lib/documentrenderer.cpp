@@ -51,6 +51,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 	_writer = new QPdfWriter(filename);
 	_writer->setResolution(72);
 	_writer->setTitle(_docTemplate->objectName());
+	_writer->setPageMargins(QMarginsF(0,0,0,0));
 
 	if (_painter != nullptr) {
 		delete _painter;
