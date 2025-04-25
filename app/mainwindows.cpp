@@ -273,6 +273,7 @@ void MainWindows::refreshPropertiesWidget() {
 
 	AutoQuill::DocumentItem::Type type = item->getType();
 
+	//overflow behavior
 	if (item->parentPage() != nullptr) { //item belongs to a page
 
 		QComboBox* overflowBehaviorSelect = new QComboBox(widget);
@@ -292,6 +293,7 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
+	//position on the page
 	if (type != AutoQuill::DocumentItem::Page and item->parentDocumentItem() != nullptr) {
 
 		QDoubleSpinBox* posXEdit = new QDoubleSpinBox(widget);
@@ -317,6 +319,7 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
+	//shape
 	if ((type != AutoQuill::DocumentItem::Loop and type != AutoQuill::DocumentItem::Condition) or
 			item->parentDocumentItem() != nullptr) {
 
@@ -366,6 +369,45 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
+	//layout options
+	AutoQuill::DocumentItem* pitem = item->parentDocumentItem();
+	AutoQuill::DocumentItem::Type pType = (pitem != nullptr) ? pitem->getType() : AutoQuill::DocumentItem::Type::Invalid;
+	bool pitemIsOnPage = (pitem == nullptr) ? false : pitem->parentPage() != nullptr;
+	if (AutoQuill::DocumentItem::typeIsLayout(pType) and pitemIsOnPage) {
+
+		QComboBox* layoutExpandBehaviorSelect = new QComboBox(widget);
+
+		layoutExpandBehaviorSelect->addItem(tr("Do not expand"), AutoQuill::DocumentItem::LayoutExpandBehavior::NotExpand);
+		layoutExpandBehaviorSelect->addItem(tr("Expand"), AutoQuill::DocumentItem::LayoutExpandBehavior::Expand);
+		layoutExpandBehaviorSelect->addItem(tr("Expand margins"), AutoQuill::DocumentItem::LayoutExpandBehavior::ExpandMargins);
+
+		int currentIndex = layoutExpandBehaviorSelect->findData(item->layoutExpandBehavior());
+		layoutExpandBehaviorSelect->setCurrentIndex(currentIndex);
+
+		connect(layoutExpandBehaviorSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, layoutExpandBehaviorSelect] () {
+			item->setLayoutExpandBehavior(static_cast<AutoQuill::DocumentItem::LayoutExpandBehavior>(layoutExpandBehaviorSelect->currentData().toInt()));
+		});
+
+		layout->addRow(tr("Expand behavior"), layoutExpandBehaviorSelect);
+
+		QComboBox* marginExpandBehaviorSelect = new QComboBox(widget);
+
+		marginExpandBehaviorSelect->addItem(tr("Expand before"), AutoQuill::DocumentItem::MarginsExpandBehavior::ExpandBefore);
+		marginExpandBehaviorSelect->addItem(tr("Expand after"), AutoQuill::DocumentItem::MarginsExpandBehavior::ExpandAfter);
+		marginExpandBehaviorSelect->addItem(tr("Expand both"), AutoQuill::DocumentItem::MarginsExpandBehavior::ExpandBoth);
+
+		currentIndex = marginExpandBehaviorSelect->findData(item->marginsExpandBehavior());
+		marginExpandBehaviorSelect->setCurrentIndex(currentIndex);
+
+		connect(marginExpandBehaviorSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, marginExpandBehaviorSelect] () {
+			item->setMarginsExpandBehavior(static_cast<AutoQuill::DocumentItem::MarginsExpandBehavior>(marginExpandBehaviorSelect->currentData().toInt()));
+		});
+
+		layout->addRow(tr("Margins expand behavior"), marginExpandBehaviorSelect);
+
+	}
+
+	//line border
 	if (type == AutoQuill::DocumentItem::Frame) {
 
 		QDoubleSpinBox* lineWidthEdit = new QDoubleSpinBox(widget);
@@ -413,6 +455,7 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
+	//text properties
 	if (type == AutoQuill::DocumentItem::Text) {
 
 		QFontComboBox* fontSelect = new QFontComboBox(widget);

@@ -73,6 +73,12 @@ protected :
 		bool rendered;
 		QVariant continuationIndex;
 		QVector<itemRenderInfos*> subitemsRenderInfos;
+
+		/*!
+		 * \brief translate translate the current item, and all subitems
+		 * \param delta the delta to apply to the origin.
+		 */
+		void translate(QPointF const& delta);
 	};
 
 	RenderingStatus layoutDocument(QVector<itemRenderInfos*> & pages, DocumentDataInterface const* dataInterface);

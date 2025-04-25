@@ -25,6 +25,10 @@ public:
 		Invalid //invalid type
 	};
 
+	inline static bool typeIsLayout(Type type) {
+		return type == List or type == Loop;
+	}
+
 	static QList<Type> supportedRootTypes();
 
 	Q_ENUM(Type);
@@ -42,6 +46,18 @@ public:
 		DrawFirstInstanceOnly,
 		CopyOnNewPages,
 		OverflowOnNewPage
+	};
+
+	enum LayoutExpandBehavior {
+		NotExpand,
+		Expand,
+		ExpandMargins
+	};
+
+	enum MarginsExpandBehavior {
+		ExpandBefore = 1,
+		ExpandAfter = 2,
+		ExpandBoth = 3
 	};
 
 	enum TextAlign {
@@ -87,6 +103,8 @@ public:
 
 	Q_PROPERTY(QString direction READ directionStr WRITE setDirectionStr NOTIFY directionChanged);
 	Q_PROPERTY(QString overflowBehavior READ overflowBehaviorStr WRITE setOverflowBehaviorStr NOTIFY overflowBehaviorChanged);
+	Q_PROPERTY(QString layoutExpandBehavior READ layoutExpandBehaviorStr WRITE setLayoutExpandBehaviorStr NOTIFY layoutExpandBehaviorChanged);
+	Q_PROPERTY(QString marginsExpendBehavior READ marginsExpendBehaviorStr WRITE setMarginsExpandBehaviorStr NOTIFY marginsExpandBehaviorChanged);
 
     Q_PROPERTY(qreal posX READ posX WRITE setPosX NOTIFY posXChanged)
     Q_PROPERTY(qreal posY READ posY WRITE setPosY NOTIFY posYChanged)
@@ -196,6 +214,84 @@ public:
 		}
 
 		setOverflowBehavior(behavior);
+	}
+
+	inline LayoutExpandBehavior layoutExpandBehavior() const {
+		return _layoutExpandBehavior;
+	}
+
+	inline QString layoutExpandBehaviorStr() const {
+		switch(_layoutExpandBehavior) {
+		case NotExpand :
+			return "NotExpand";
+		case Expand:
+			return "Expand";
+		case ExpandMargins:
+			return "ExpandMargins";
+		}
+		return "NotExpand";
+	}
+
+	inline void setLayoutExpandBehavior(LayoutExpandBehavior expandingBehavior) {
+		if (expandingBehavior != _layoutExpandBehavior) {
+			_layoutExpandBehavior = expandingBehavior;
+			Q_EMIT layoutExpandBehaviorChanged();
+		}
+	}
+
+	inline void setLayoutExpandBehaviorStr(QString str) {
+		LayoutExpandBehavior behavior = NotExpand;
+
+		QString lowercase = str.toLower();
+
+		if (lowercase == "notexpand") {
+			behavior = NotExpand;
+		} else if (lowercase == "expand") {
+			behavior = Expand;
+		} else if (lowercase == "expandmargins") {
+			behavior = ExpandMargins;
+		}
+
+		setLayoutExpandBehavior(behavior);
+	}
+
+	inline MarginsExpandBehavior marginsExpandBehavior() const {
+		return _marginsExpendBehavior;
+	}
+
+	inline QString marginsExpendBehaviorStr() const {
+		switch(_marginsExpendBehavior) {
+		case ExpandBefore:
+			return "ExpandBefore";
+		case ExpandAfter:
+			return "ExpandAfter";
+		case ExpandBoth:
+			return "ExpandBoth";
+		}
+		return "ExpandBoth";
+	}
+
+	inline void setMarginsExpandBehavior(MarginsExpandBehavior expandingBehavior) {
+		if (expandingBehavior != _marginsExpendBehavior) {
+			_marginsExpendBehavior = expandingBehavior;
+			Q_EMIT marginsExpandBehaviorChanged();
+		}
+	}
+
+	inline void setMarginsExpandBehaviorStr(QString str) {
+		MarginsExpandBehavior behavior = ExpandBoth;
+
+		QString lowercase = str.toLower();
+
+		if (lowercase == "expandbefore") {
+			behavior = ExpandBefore;
+		} else if (lowercase == "expandafter") {
+			behavior = ExpandAfter;
+		} else if (lowercase == "expandboth") {
+			behavior = ExpandBoth;
+		}
+
+		setMarginsExpandBehavior(behavior);
 	}
 
     inline qreal posX() const {
@@ -506,6 +602,8 @@ Q_SIGNALS:
 
     void directionChanged();
 	void overflowBehaviorChanged();
+	void layoutExpandBehaviorChanged();
+	void marginsExpandBehaviorChanged();
 
     void posXChanged();
     void posYChanged();
@@ -539,6 +637,8 @@ protected:
 
     Direction _direction;
 	OverflowBehavior _overflowBehavior;
+	LayoutExpandBehavior _layoutExpandBehavior;
+	MarginsExpandBehavior _marginsExpendBehavior;
 
     qreal _pos_x;
     qreal _pos_y;

@@ -108,6 +108,16 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 	return status;
 }
 
+void DocumentRenderer::itemRenderInfos::translate(QPointF const& delta) {
+	currentOrigin += delta;
+
+	for (itemRenderInfos* subItemInfos : subitemsRenderInfos) {
+		if (subItemInfos != nullptr) {
+			subItemInfos->translate(delta);
+		}
+	}
+}
+
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemRenderInfos*> & topLevel, DocumentDataInterface const* dataInterface) {
 
 	if (_docTemplate == nullptr) {
@@ -147,7 +157,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemR
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutItem(itemRenderInfos& itemInfos, itemRenderInfos* previousRender, QVector<itemRenderInfos*>* targetItemPool) {
 
 	if (previousRender != nullptr) {
-		if (previousRender->renderStatus == Success) {
+		if (previousRender->layoutStatus == Success) {
 
 			if (previousRender->item != nullptr) {
 				if (previousRender->item->overflowBehavior() != DocumentItem::OverflowBehavior::CopyOnNewPages) {
@@ -247,7 +257,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(itemRenderIn
 	bool no_render_needed = false;
 
 	if (subPreviousRender != nullptr) {
-		if (subPreviousRender->renderStatus == Success) {
+		if (subPreviousRender->layoutStatus == Success) {
 
 			if (subPreviousRender->item != nullptr) {
 				if (subPreviousRender->item->overflowBehavior() != DocumentItem::OverflowBehavior::CopyOnNewPages) {
@@ -293,10 +303,22 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 			oldContext.origin + itemInfos.item->origin(),
 			oldContext.region.boundedTo(itemInfos.item->initialSize())};
 
+	//resize the context to the max size in layout direction
+	if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+			itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+		_renderContext.region.setHeight(itemInfos.item->maxHeight());
+		renderSize.setWidth(itemInfos.item->initialWidth());
+
+	} else {
+		_renderContext.region.setWidth(itemInfos.item->maxWidth());
+		renderSize.setHeight(itemInfos.item->initialHeight());
+	}
+
 	QString message = "";
 
 	int startsId = 0;
-	itemInfos.renderStatus = Success;
+	itemInfos.layoutStatus = Success;
 
 	if (previousRender != nullptr) {
 		if (previousRender->continuationIndex.canConvert<int>()) {
@@ -307,11 +329,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 							QObject::tr("Loop with empty non null previous render should not occur").arg(itemInfos.item->objectName())};
 			}
 
-			if (previousRender->subitemsRenderInfos.last()->renderStatus != NotAllItemsRendered) {
-				if (previousRender->subitemsRenderInfos.last()->renderStatus != MissingSpace) {
+			if (previousRender->subitemsRenderInfos.last()->layoutStatus != NotAllItemsRendered) {
+				if (previousRender->subitemsRenderInfos.last()->layoutStatus != MissingSpace) {
 					startsId++;
 				}
-			} else if (previousRender->subitemsRenderInfos.last()->renderStatus == NotAllItemsRendered) {
+			} else if (previousRender->subitemsRenderInfos.last()->layoutStatus == NotAllItemsRendered) {
 				if (previousRender->subitemsRenderInfos.last()->item != nullptr) {
 					if (previousRender->subitemsRenderInfos.last()->item->overflowBehavior() != DocumentItem::OverflowOnNewPage) {
 						startsId++;
@@ -324,7 +346,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 	}
 
 	if (startsId >= nCopies) {
-		itemInfos.renderStatus = Success;
+		itemInfos.layoutStatus = Success;
 		return RenderingStatus{Success, "", renderSize};
 	}
 
@@ -355,19 +377,22 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 
 		if (layoutStatus.status == MissingSpace) {
 			if (i == startsId) {
-				itemInfos.renderStatus = MissingSpace;
+				itemInfos.layoutStatus = MissingSpace;
 				message = layoutStatus.message +
 						QString("\n Table: %1 missing space to render at least one item").arg(itemInfos.item->objectName());
 			} else {
 				subItemInfos->toRender = false;
-				itemInfos.renderStatus = NotAllItemsRendered;
+				itemInfos.layoutStatus = NotAllItemsRendered;
+				itemInfos.subitemsRenderInfos.removeLast();
+				delete subItemInfos;
+				itemInfos.continuationIndex = i-1;
 			}
 			break;
 		} else if (layoutStatus.status == NotAllItemsRendered) {
-			itemInfos.renderStatus = NotAllItemsRendered;
+			itemInfos.layoutStatus = NotAllItemsRendered;
 			break;
 		} else if (layoutStatus.status != Success) {
-			itemInfos.renderStatus = layoutStatus.status;
+			itemInfos.layoutStatus = layoutStatus.status;
 			break;
 		}
 
@@ -397,9 +422,117 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 		}
 	}
 
+	//deal with remaining empty space.
+
+	qreal remaining_space = 0;
+	int nExpandable = 0;
+	qreal pos_delta = 0;
+	qreal expand_amount = 0;
+
+	if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+			itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+		remaining_space = itemInfos.item->initialHeight() - renderSize.height();
+
+	} else {
+
+		remaining_space = itemInfos.item->initialWidth() - renderSize.width();
+	}
+
+	if (remaining_space <= 0) {
+		goto end_layout;
+	}
+
+	if (renderSize.height() < itemInfos.item->initialHeight()) {
+		renderSize.rheight() = itemInfos.item->initialHeight();
+	}
+
+	if (renderSize.width() < itemInfos.item->initialWidth()) {
+		renderSize.rwidth() = itemInfos.item->initialWidth();
+	}
+
+	for (int i = 0; i < itemInfos.subitemsRenderInfos.size(); i++) {
+		if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() != DocumentItem::LayoutExpandBehavior::NotExpand) {
+			nExpandable++;
+		}
+	}
+
+	if (nExpandable <= 0) {
+		goto end_layout;
+	}
+
+	expand_amount = remaining_space/nExpandable;
+
+	for (int i = 0; i < itemInfos.subitemsRenderInfos.size(); i++) {
+
+		if (itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+			itemInfos.subitemsRenderInfos[i]->currentOrigin.ry() += pos_delta;
+
+		} else if (itemInfos.item->direction() == DocumentItem::Bottom2Top) {
+
+			itemInfos.subitemsRenderInfos[i]->currentOrigin.ry() -= pos_delta;
+
+		} else if (itemInfos.item->direction() == DocumentItem::Left2Right) {
+
+			itemInfos.subitemsRenderInfos[i]->currentOrigin.rx() += pos_delta;
+
+		} else {
+			itemInfos.subitemsRenderInfos[i]->currentOrigin.rx() -= pos_delta;
+		}
+
+		if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() != DocumentItem::LayoutExpandBehavior::NotExpand) {
+
+			if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+					itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+				if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: Expand) {
+					itemInfos.subitemsRenderInfos[i]->currentSize.rheight() += expand_amount;
+
+					if (itemInfos.item->direction() == DocumentItem::Bottom2Top ) {
+						itemInfos.subitemsRenderInfos[i]->currentOrigin.ry() -= expand_amount;
+					}
+
+				} else if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: ExpandMargins) {
+
+					qreal scale = (itemInfos.item->direction() == DocumentItem::Bottom2Top ) ? -1 : 1;
+
+					auto marginExpandBehavior = itemInfos.subitemsRenderInfos[i]->item->marginsExpandBehavior();
+					itemInfos.subitemsRenderInfos[i]->currentOrigin.ry() +=
+							scale * ((marginExpandBehavior == DocumentItem::ExpandBefore) ? expand_amount :
+																				   ((marginExpandBehavior == DocumentItem::ExpandBoth) ? expand_amount/2 : 0));
+				}
+
+			} else {
+
+				if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: Expand) {
+					itemInfos.subitemsRenderInfos[i]->currentSize.rwidth() += expand_amount;
+
+					if (itemInfos.item->direction() == DocumentItem::Right2Left ) {
+						itemInfos.subitemsRenderInfos[i]->currentOrigin.rx() -= expand_amount;
+					}
+
+				} else if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: ExpandMargins) {
+
+					qreal scale = (itemInfos.item->direction() == DocumentItem::Right2Left ) ? -1 : 1;
+
+					auto marginExpandBehavior = itemInfos.subitemsRenderInfos[i]->item->marginsExpandBehavior();
+					itemInfos.subitemsRenderInfos[i]->currentOrigin.rx() +=
+							scale * ((marginExpandBehavior == DocumentItem::ExpandBefore) ? expand_amount :
+																				   ((marginExpandBehavior == DocumentItem::ExpandBoth) ? expand_amount/2 : 0));
+				}
+			}
+
+			pos_delta += expand_amount;
+
+		}
+	}
+
+	end_layout:
+
 	_renderContext = oldContext;
 
-	return RenderingStatus{itemInfos.renderStatus, message, renderSize};
+	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
 
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender, QVector<itemRenderInfos*>* targetItemPool) {
@@ -450,7 +583,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 			}
 
 			if (previousItemRenderInfos != nullptr) {
-				if (previousItemRenderInfos->renderStatus == Success) {
+				if (previousItemRenderInfos->layoutStatus == Success) {
 
 					if (previousItemRenderInfos->item != nullptr) {
 						if (previousItemRenderInfos->item->overflowBehavior() != DocumentItem::OverflowBehavior::CopyOnNewPages) {
@@ -529,6 +662,18 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 			oldContext.origin + itemInfos.item->origin(),
 			oldContext.region.boundedTo(itemInfos.item->initialSize())};
 
+	//resize the context to the max size in layout direction
+	if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+			itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+		_renderContext.region.setHeight(itemInfos.item->maxHeight());
+		renderSize.setWidth(itemInfos.item->initialWidth());
+
+	} else {
+		_renderContext.region.setWidth(itemInfos.item->maxWidth());
+		renderSize.setHeight(itemInfos.item->initialHeight());
+	}
+
 	QString message = "";
 
 	int startsId = 0;
@@ -542,9 +687,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 							QObject::tr("List with empty non null previous render should not occur").arg(itemInfos.item->objectName())};
 			}
 
-			if (previousRender->subitemsRenderInfos.last()->renderStatus != NotAllItemsRendered) {
+			if (previousRender->subitemsRenderInfos.last()->layoutStatus != NotAllItemsRendered) {
 				startsId++;
-			} else if (previousRender->subitemsRenderInfos.last()->renderStatus == NotAllItemsRendered) {
+			} else if (previousRender->subitemsRenderInfos.last()->layoutStatus == NotAllItemsRendered) {
 				if (previousRender->subitemsRenderInfos.last()->item != nullptr) {
 					if (previousRender->subitemsRenderInfos.last()->item->overflowBehavior() != DocumentItem::OverflowOnNewPage) {
 						startsId++;
@@ -557,7 +702,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 	}
 
 	if (startsId >= nItems) {
-		itemInfos.renderStatus = Success;
+		itemInfos.layoutStatus = Success;
 		return RenderingStatus{Success, "", renderSize};
 	}
 
@@ -594,18 +739,21 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 
 		if (layoutStatus.status == MissingSpace) {
 			if (i == startsId) {
-				itemInfos.renderStatus = MissingSpace;
+				itemInfos.layoutStatus = MissingSpace;
 				message = layoutStatus.message +
 						QString("\n Table: %1 missing space to render at least one item").arg(itemInfos.item->objectName());
 			} else {
-				itemInfos.renderStatus = NotAllItemsRendered;
+				itemInfos.layoutStatus = NotAllItemsRendered;
+				itemInfos.subitemsRenderInfos.removeLast();
+				delete subItemInfos;
+				itemInfos.continuationIndex = i-1;
 			}
 			break;
 		} else if (layoutStatus.status == NotAllItemsRendered) {
-			itemInfos.renderStatus = NotAllItemsRendered;
+			itemInfos.layoutStatus = NotAllItemsRendered;
 			break;
 		} else if (layoutStatus.status != Success) {
-			itemInfos.renderStatus = layoutStatus.status;
+			itemInfos.layoutStatus = layoutStatus.status;
 			break;
 		}
 
@@ -617,7 +765,6 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 			renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
 			break;
 		case DocumentItem::Right2Left:
-			_renderContext.origin.rx() -= layoutStatus.renderSize.width();
 			_renderContext.region.rwidth() -= layoutStatus.renderSize.width();
 			renderSize.rwidth() += layoutStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
@@ -629,17 +776,133 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 			renderSize.rheight() += layoutStatus.renderSize.height();
 			break;
 		case DocumentItem::Bottom2Top:
-			renderSize.rwidth() += std::max(renderSize.height(), layoutStatus.renderSize.height());
+			_renderContext.region.rheight() -= layoutStatus.renderSize.height();
+			renderSize.rwidth() = std::max(renderSize.height(), layoutStatus.renderSize.height());
 			renderSize.rheight() += layoutStatus.renderSize.height();
 			break;
 		}
 	}
 
+	//deal with remaining empty space.
+
+	qreal remaining_space = 0;
+	int nExpandable = 0;
+	qreal pos_delta = 0;
+	qreal expand_amount = 0;
+
+	if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+			itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+		remaining_space = itemInfos.item->initialHeight() - renderSize.height();
+
+	} else {
+
+		remaining_space = itemInfos.item->initialWidth() - renderSize.width();
+	}
+
+	if (remaining_space <= 0) {
+		goto end_layout;
+	}
+
+	if (renderSize.height() < itemInfos.item->initialHeight()) {
+		renderSize.rheight() = itemInfos.item->initialHeight();
+	}
+
+	if (renderSize.width() < itemInfos.item->initialWidth()) {
+		renderSize.rwidth() = itemInfos.item->initialWidth();
+	}
+
+	for (int i = 0; i < itemInfos.subitemsRenderInfos.size(); i++) {
+		if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() != DocumentItem::LayoutExpandBehavior::NotExpand) {
+			nExpandable++;
+		}
+	}
+
+	if (nExpandable <= 0) {
+		goto end_layout;
+	}
+
+	expand_amount = remaining_space/nExpandable;
+
+	for (int i = 0; i < itemInfos.subitemsRenderInfos.size(); i++) {
+
+		if (itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+			itemInfos.subitemsRenderInfos[i]->translate(QPointF(0,pos_delta));
+
+		} else if (itemInfos.item->direction() == DocumentItem::Bottom2Top) {
+
+			itemInfos.subitemsRenderInfos[i]->translate(QPointF(0,-pos_delta));
+
+		} else if (itemInfos.item->direction() == DocumentItem::Left2Right) {
+
+			itemInfos.subitemsRenderInfos[i]->translate(QPointF(pos_delta,0));
+
+		} else {
+
+			itemInfos.subitemsRenderInfos[i]->translate(QPointF(-pos_delta,0));
+
+		}
+
+		if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() != DocumentItem::LayoutExpandBehavior::NotExpand) {
+
+			if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+					itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+
+				if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: Expand) {
+					itemInfos.subitemsRenderInfos[i]->currentSize.rheight() += expand_amount;
+
+					if (itemInfos.item->direction() == DocumentItem::Bottom2Top ) {
+						itemInfos.subitemsRenderInfos[i]->translate(QPointF(0,-expand_amount));
+					}
+
+				} else if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: ExpandMargins) {
+
+					qreal scale = (itemInfos.item->direction() == DocumentItem::Bottom2Top ) ? -1 : 1;
+
+					auto marginExpandBehavior = itemInfos.subitemsRenderInfos[i]->item->marginsExpandBehavior();
+					qreal dy =
+							scale * ((marginExpandBehavior == DocumentItem::ExpandBefore) ? expand_amount :
+																				   ((marginExpandBehavior == DocumentItem::ExpandBoth) ? expand_amount/2 : 0));
+
+					itemInfos.subitemsRenderInfos[i]->translate(QPointF(0,dy));
+				}
+
+			} else {
+
+				if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: Expand) {
+					itemInfos.subitemsRenderInfos[i]->currentSize.rwidth() += expand_amount;
+
+					if (itemInfos.item->direction() == DocumentItem::Right2Left ) {
+						itemInfos.subitemsRenderInfos[i]->translate(QPointF(-expand_amount,0));
+					}
+
+				} else if (itemInfos.subitemsRenderInfos[i]->item->layoutExpandBehavior() == DocumentItem::LayoutExpandBehavior:: ExpandMargins) {
+
+					qreal scale = (itemInfos.item->direction() == DocumentItem::Right2Left ) ? -1 : 1;
+
+					auto marginExpandBehavior = itemInfos.subitemsRenderInfos[i]->item->marginsExpandBehavior();
+					qreal dx =
+							scale * ((marginExpandBehavior == DocumentItem::ExpandBefore) ? expand_amount :
+																				   ((marginExpandBehavior == DocumentItem::ExpandBoth) ? expand_amount/2 : 0));
+
+					itemInfos.subitemsRenderInfos[i]->translate(QPointF(dx,0));
+				}
+			}
+
+			pos_delta += expand_amount;
+
+		}
+	}
+
+	end_layout:
+
 	_renderContext = oldContext;
 
-	return RenderingStatus{itemInfos.renderStatus, message, renderSize};
+	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
 
 }
+
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
 
 	if (itemInfos.item == nullptr) {
@@ -659,13 +922,15 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos&
 
 	QPointF origin = oldContext.origin + itemInfos.item->origin();
 
-	if (_renderContext.direction == DocumentItem::Right2Left) {
+	if (oldContext.direction == DocumentItem::Right2Left) {
 		origin.rx() = oldContext.origin.x() - itemInfos.item->origin().x();
 	}
 
-	if (_renderContext.direction == DocumentItem::Bottom2Top) {
+	if (oldContext.direction == DocumentItem::Bottom2Top) {
 		origin.ry() = oldContext.origin.y() - itemInfos.item->origin().y();
 	}
+
+	itemInfos.currentOrigin = origin;
 
 	QSizeF renderSize(itemInfos.item->initialSize());
 	_renderContext = RenderContext{itemInfos.item->direction(),
@@ -685,8 +950,6 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos&
 		subItemInfos->continuationIndex = QVariant();
 		subItemInfos->layoutStatus = Success;
 
-		itemInfos.subitemsRenderInfos.push_back(subItemInfos);
-
 		itemRenderInfos* previousItemRenderInfos = nullptr;
 
 		if (previousRender != nullptr) {
@@ -696,7 +959,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos&
 		}
 
 		if (previousItemRenderInfos != nullptr) {
-			if (previousItemRenderInfos->renderStatus == Success) {
+			if (previousItemRenderInfos->layoutStatus == Success) {
 
 				if (previousItemRenderInfos->item != nullptr) {
 					if (previousItemRenderInfos->item->overflowBehavior() != DocumentItem::OverflowBehavior::CopyOnNewPages) {
@@ -744,7 +1007,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(itemRenderInfos& 
 	if (itemInitialSize.width() > _renderContext.region.width() or
 			itemInitialSize.height() > _renderContext.region.height()) {
 
-		itemInfos.renderStatus = MissingSpace;
+		itemInfos.layoutStatus = MissingSpace;
 		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Text: %1").arg(itemInfos.item->objectName())};
 	}
 
@@ -803,7 +1066,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(itemRenderInfos& 
 		status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
 	}
 
-	itemInfos.renderStatus = status.status;
+	itemInfos.layoutStatus = status.status;
 	return status;
 
 }
@@ -902,7 +1165,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(itemRenderInfos
 
 	itemInfos.currentOrigin = requiredRegion.topLeft();
 	itemInfos.currentSize = requiredRegion.size();
-	itemInfos.renderStatus = Success;
+	itemInfos.layoutStatus = Success;
 
 	return{Success};
 }
