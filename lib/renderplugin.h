@@ -16,7 +16,7 @@ public:
 
 	virtual QRectF getMinimalSpace(QRectF const& availableSpace, DocumentValue const& val) const = 0;
 
-	virtual DocumentRenderer::RenderingStatus renderItem(QRectF const& area, QPainter const& painter, DocumentValue const& val) const = 0;
+	virtual DocumentRenderer::RenderingStatus renderItem(QRectF const& area, QPainter & painter, DocumentValue const& val) const = 0;
 };
 
 /*!
