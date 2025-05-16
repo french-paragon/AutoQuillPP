@@ -89,9 +89,9 @@ bool exportTemplateUsingJson(AutoQuill::DocumentTemplate *documentTemplate,
 	QTextStream out(stdout);
 
 	if (rendering_status.status == AutoQuill::DocumentRenderer::Status::Success) {
-		out << "Successfully rendered document" << Qt::endl;
+		out << "Successfully rendered document" << endl;
 	} else {
-		out << "The renderer encountered some errors: " << rendering_status.message << Qt::endl;
+		out << "The renderer encountered some errors: " << rendering_status.message << endl;
 	}
 
     return true;

@@ -4,6 +4,7 @@
 #include <QString>
 #include <QPoint>
 #include <QSize>
+#include <QVector>
 
 class QPainter;
 class QPdfWriter;

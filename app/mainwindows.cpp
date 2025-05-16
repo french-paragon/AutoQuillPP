@@ -545,9 +545,9 @@ void MainWindows::refreshPropertiesWidget() {
 		textAlignmentGroup->addButton(alignRightButton, AutoQuill::DocumentItem::TextAlign::AlignRight);
 		textAlignmentGroup->addButton(alignJustifyButton, AutoQuill::DocumentItem::TextAlign::AlignJustify);
 
-		connect(textAlignmentGroup, &QButtonGroup::idToggled, item, [item] (int id, bool checked) {
+		connect(textAlignmentGroup, QOverload<QAbstractButton *, bool>::of(&QButtonGroup::buttonToggled), item, [item, textAlignmentGroup] (QAbstractButton* button, bool checked) {
 			if (checked) {
-				item->setTextAlign(static_cast<AutoQuill::DocumentItem::TextAlign>(id));
+				item->setTextAlign(static_cast<AutoQuill::DocumentItem::TextAlign>(textAlignmentGroup->id(button)));
 			}
 		});
 

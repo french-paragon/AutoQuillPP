@@ -19,7 +19,7 @@ RenderPluginManager::RenderPluginManager() {
 }
 RenderPluginManager::~RenderPluginManager() {
 
-	QSet<RenderPlugin*> managedPlugins(_map.begin(), _map.end());
+	QSet<RenderPlugin*> managedPlugins = QSet<RenderPlugin*>::fromList(_map.values());
 
 	for (RenderPlugin* plugin : qAsConst(managedPlugins)) {
 		delete plugin;
