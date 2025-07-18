@@ -38,27 +38,36 @@ public :
 		QSizeF renderSize;
 	};
 
+	struct ItemRenderInfos;
+
+	struct LayoutResults {
+		QVector<ItemRenderInfos*> layout;
+		RenderingStatus status;
+	};
+
 	DocumentRenderer(DocumentTemplate const& docTemplate);
 	~DocumentRenderer();
 
+	/*!
+	 * \brief layout layout the items and return a list of rendered pages
+	 * \param dataInterface the data interface for the document
+	 * \param pluginManager the plugin manager to use for the plugins.
+	 * \return the LayoutResults, containing the list of pages, as well as the layout status
+	 */
+	LayoutResults layout(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager);
 	RenderingStatus render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
 
-protected :
+	RenderingStatus render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename);
 
-	struct RenderContext {
-		DocumentItem::Direction direction;
-		QPointF origin;
-		QSizeF region;
-	};
 
-	struct itemRenderInfos {
+	struct ItemRenderInfos {
 
-		itemRenderInfos() {
+		ItemRenderInfos() {
 			toRender = true;
 		}
 
-		~itemRenderInfos() {
-			for (itemRenderInfos* itemRenderInfos : qAsConst(subitemsRenderInfos)) {
+		~ItemRenderInfos() {
+			for (ItemRenderInfos* itemRenderInfos : qAsConst(subitemsRenderInfos)) {
 				delete itemRenderInfos;
 			}
 		}
@@ -73,7 +82,7 @@ protected :
 		bool toRender;
 		bool rendered;
 		QVariant continuationIndex;
-		QVector<itemRenderInfos*> subitemsRenderInfos;
+		QVector<ItemRenderInfos*> subitemsRenderInfos;
 
 		/*!
 		 * \brief translate translate the current item, and all subitems
@@ -82,28 +91,36 @@ protected :
 		void translate(QPointF const& delta);
 	};
 
-	RenderingStatus layoutDocument(QVector<itemRenderInfos*> & pages, DocumentDataInterface const* dataInterface);
-	RenderingStatus layoutItem(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr, QVector<itemRenderInfos*>* targetItemPool = nullptr);
+protected :
 
-	RenderingStatus layoutCondition(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutLoop(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutPage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr, QVector<itemRenderInfos*>* targetItemPool = nullptr);
-	RenderingStatus layoutList(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutFrame(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutText(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutImage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
-	RenderingStatus layoutPlugin(itemRenderInfos& itemInfos, itemRenderInfos* previousRender = nullptr);
+	struct RenderContext {
+		DocumentItem::Direction direction;
+		QPointF origin;
+		QSizeF region;
+	};
 
-	RenderingStatus renderItem(itemRenderInfos& itemInfos);
+	RenderingStatus layoutDocument(QVector<ItemRenderInfos*> & pages, DocumentDataInterface const* dataInterface);
+	RenderingStatus layoutItem(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr, QVector<ItemRenderInfos*>* targetItemPool = nullptr);
 
-	RenderingStatus renderCondition(itemRenderInfos& itemInfos);
-	RenderingStatus renderLoop(itemRenderInfos& itemInfos);
-	RenderingStatus renderPage(itemRenderInfos& itemInfos);
-	RenderingStatus renderList(itemRenderInfos& itemInfos);
-	RenderingStatus renderFrame(itemRenderInfos& itemInfos);
-	RenderingStatus renderText(itemRenderInfos& itemInfos);
-	RenderingStatus renderImage(itemRenderInfos& itemInfos);
-	RenderingStatus renderPlugin(itemRenderInfos& itemInfos);
+	RenderingStatus layoutCondition(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutLoop(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutPage(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr, QVector<ItemRenderInfos*>* targetItemPool = nullptr);
+	RenderingStatus layoutList(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutFrame(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutText(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutImage(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+	RenderingStatus layoutPlugin(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
+
+	RenderingStatus renderItem(ItemRenderInfos& itemInfos);
+
+	RenderingStatus renderCondition(ItemRenderInfos& itemInfos);
+	RenderingStatus renderLoop(ItemRenderInfos& itemInfos);
+	RenderingStatus renderPage(ItemRenderInfos& itemInfos);
+	RenderingStatus renderList(ItemRenderInfos& itemInfos);
+	RenderingStatus renderFrame(ItemRenderInfos& itemInfos);
+	RenderingStatus renderText(ItemRenderInfos& itemInfos);
+	RenderingStatus renderImage(ItemRenderInfos& itemInfos);
+	RenderingStatus renderPlugin(ItemRenderInfos& itemInfos);
 
 	QPainter* _painter;
 	QPdfWriter* _writer;

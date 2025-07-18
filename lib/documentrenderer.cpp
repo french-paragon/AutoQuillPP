@@ -32,6 +32,25 @@ DocumentRenderer::~DocumentRenderer() {
 	}
 }
 
+DocumentRenderer::LayoutResults DocumentRenderer::layout(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager) {
+
+	_pluginManager = &pluginManager;
+
+	QVector<ItemRenderInfos*> layout;
+
+	RenderingStatus layoutStatus = layoutDocument(layout, dataInterface);
+
+	if (layoutStatus.status != Success) {
+		for (ItemRenderInfos* item : qAsConst(layout)) {
+			if (item != nullptr) {
+				delete item;
+			}
+		}
+		return {layout, layoutStatus};
+	}
+
+	return {QVector<ItemRenderInfos*>(), layoutStatus};
+}
 DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename) {
 
 	_pluginManager = &pluginManager;
@@ -63,11 +82,16 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 
 	RenderingStatus status{Success, ""};
 
-	QVector<itemRenderInfos*> layout;
+	QVector<ItemRenderInfos*> layout;
 
 	RenderingStatus layoutStatus = layoutDocument(layout, dataInterface);
 
 	if (layoutStatus.status != Success) {
+		for (ItemRenderInfos* item : qAsConst(layout)) {
+			if (item != nullptr) {
+				delete item;
+			}
+		}
 		delete _painter;
 		delete _writer;
 		_painter = nullptr;
@@ -83,7 +107,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 		return RenderingStatus{MissingModel, QObject::tr("Final layout is empty")};
 	}
 
-	for (itemRenderInfos* item : layout) {
+	for (ItemRenderInfos* item : layout) {
 
 		RenderingStatus itemStatus = renderItem(*item);
 
@@ -96,7 +120,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 		}
 	}
 
-	for (itemRenderInfos* item : layout) {
+	for (ItemRenderInfos* item : layout) {
 		delete item;
 	}
 
@@ -108,17 +132,75 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 	return status;
 }
 
-void DocumentRenderer::itemRenderInfos::translate(QPointF const& delta) {
+
+DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename) {
+
+	_pluginManager = &pluginManager;
+
+	if (layout.isEmpty()) {
+		return RenderingStatus{MissingData, QObject::tr("Missing layout")};
+	}
+
+	if (_docTemplate == nullptr) {
+		return RenderingStatus{MissingModel, QObject::tr("Invalid template")};
+	}
+
+	if (_writer != nullptr) {
+		delete _writer;
+	}
+
+	_writer = new QPdfWriter(filename);
+	_writer->setResolution(72);
+	_writer->setTitle(_docTemplate->objectName());
+	_writer->setPageMargins(QMarginsF(0,0,0,0));
+
+	if (_painter != nullptr) {
+		delete _painter;
+	}
+
+	_painter = new QPainter(_writer);
+	_pagesToWrite = 0;
+	_pagesWritten = 0;
+
+	RenderingStatus status{Success, ""};
+
+	for (ItemRenderInfos* item : layout) {
+
+		RenderingStatus itemStatus = renderItem(*item);
+
+		if (itemStatus.status != Success) {
+			status.status = itemStatus.status;
+			if (!status.message.isEmpty()) {
+				status.message += "\n";
+			}
+			status.message += itemStatus.message;
+		}
+	}
+
+	for (ItemRenderInfos* item : layout) {
+		delete item;
+	}
+
+	delete _painter;
+	delete _writer;
+	_painter = nullptr;
+	_writer = nullptr;
+
+	return status;
+
+}
+
+void DocumentRenderer::ItemRenderInfos::translate(QPointF const& delta) {
 	currentOrigin += delta;
 
-	for (itemRenderInfos* subItemInfos : subitemsRenderInfos) {
+	for (ItemRenderInfos* subItemInfos : subitemsRenderInfos) {
 		if (subItemInfos != nullptr) {
 			subItemInfos->translate(delta);
 		}
 	}
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemRenderInfos*> & topLevel, DocumentDataInterface const* dataInterface) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<ItemRenderInfos*> & topLevel, DocumentDataInterface const* dataInterface) {
 
 	if (_docTemplate == nullptr) {
 		return RenderingStatus{OtherError, QObject::tr("Invalid template")};
@@ -130,7 +212,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemR
 
 		DocumentValue val = dataInterface->getValue(item->dataKey());
 
-		itemRenderInfos* itemInfos = new itemRenderInfos();
+		ItemRenderInfos* itemInfos = new ItemRenderInfos();
 		itemInfos->item = item;
 		itemInfos->itemValue = val;
 		itemInfos->currentSize = item->initialSize();
@@ -154,7 +236,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<itemR
 	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutItem(itemRenderInfos& itemInfos, itemRenderInfos* previousRender, QVector<itemRenderInfos*>* targetItemPool) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutItem(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender, QVector<ItemRenderInfos*>* targetItemPool) {
 
 	if (previousRender != nullptr) {
 		if (previousRender->layoutStatus == Success) {
@@ -197,7 +279,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutItem(itemRenderInfos& 
 
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel,
@@ -235,7 +317,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(itemRenderIn
 
 	DocumentValue target_val = itemInfos.itemValue.getValue(target_item->dataKey());
 
-	itemRenderInfos* subItemInfos = new itemRenderInfos();
+	ItemRenderInfos* subItemInfos = new ItemRenderInfos();
 	subItemInfos->item = target_item;
 	subItemInfos->itemValue = target_val;
 	subItemInfos->currentSize = target_item->initialSize();
@@ -244,7 +326,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(itemRenderIn
 	subItemInfos->continuationIndex = QVariant();
 	subItemInfos->layoutStatus = Success;
 
-	itemRenderInfos* subPreviousRender = nullptr;
+	ItemRenderInfos* subPreviousRender = nullptr;
 
 	if (previousRender != nullptr) {
 		if (!previousRender->subitemsRenderInfos.isEmpty()) {
@@ -278,7 +360,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(itemRenderIn
 
 	return layoutItem(*subItemInfos, subPreviousRender, &itemInfos.subitemsRenderInfos);
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -352,7 +434,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 
 	for (int i = startsId; i < nCopies; i++) {
 
-		itemRenderInfos* subItemInfos = new itemRenderInfos();
+		ItemRenderInfos* subItemInfos = new ItemRenderInfos();
 		subItemInfos->item = itemInfos.item->subitems()[0];
 		subItemInfos->itemValue = itemInfos.itemValue.getValue(i);
 		subItemInfos->currentSize = subItemInfos->item->initialSize();
@@ -363,7 +445,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 
 		itemInfos.subitemsRenderInfos.push_back(subItemInfos);
 
-		itemRenderInfos* previousInfos = nullptr;
+		ItemRenderInfos* previousInfos = nullptr;
 
 		if (previousRender != nullptr) {
 			if (i == startsId and previousRender->subitemsRenderInfos.last()->item == subItemInfos->item) {
@@ -535,7 +617,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(itemRenderInfos& 
 	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender, QVector<itemRenderInfos*>* targetItemPool) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender, QVector<ItemRenderInfos*>* targetItemPool) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -550,8 +632,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 	bool hasMoreToRender = false;
 	bool isFirst = true;
 
-	itemRenderInfos* currentPageInfos = &itemInfos;
-	itemRenderInfos* previousPageInfos = previousRender;
+	ItemRenderInfos* currentPageInfos = &itemInfos;
+	ItemRenderInfos* previousPageInfos = previousRender;
 
 	do {
 
@@ -565,7 +647,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 				continue; //skip items configured to draw first instance only.
 			}
 
-			itemRenderInfos* subItemInfos = new itemRenderInfos();
+			ItemRenderInfos* subItemInfos = new ItemRenderInfos();
 			subItemInfos->item = itemInfos.item->subitems()[i];
 			subItemInfos->itemValue = itemInfos.itemValue.getValue(subItemInfos->item->dataKey());
 			subItemInfos->currentSize = subItemInfos->item->initialSize();
@@ -574,7 +656,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 			subItemInfos->continuationIndex = QVariant();
 			subItemInfos->layoutStatus = Success;
 
-			itemRenderInfos* previousItemRenderInfos = nullptr;
+			ItemRenderInfos* previousItemRenderInfos = nullptr;
 
 			if (previousPageInfos != nullptr) {
 				if (previousPageInfos->subitemsRenderInfos.size() > i) {
@@ -631,7 +713,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 
 		if (hasMoreToRender) {
 			previousPageInfos = currentPageInfos;
-			currentPageInfos = new itemRenderInfos();
+			currentPageInfos = new ItemRenderInfos();
 			currentPageInfos->item = itemInfos.item;
 			currentPageInfos->itemValue = itemInfos.itemValue;
 			currentPageInfos->currentSize = itemInfos.currentSize;
@@ -647,7 +729,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(itemRenderInfos& 
 
 	return status;
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -708,7 +790,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 
 	for (int i = startsId; i < nItems; i++) {
 
-		itemRenderInfos* subItemInfos = new itemRenderInfos();
+		ItemRenderInfos* subItemInfos = new ItemRenderInfos();
 		subItemInfos->item = itemInfos.item->subitems()[i];
 
 		if (itemInfos.itemValue.hasArray()) { //in case an array was provided, use the index
@@ -725,7 +807,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 
 		itemInfos.subitemsRenderInfos.push_back(subItemInfos);
 
-		itemRenderInfos* previousInfos = nullptr;
+		ItemRenderInfos* previousInfos = nullptr;
 
 		if (previousRender != nullptr) {
 			if (i == startsId and previousRender->subitemsRenderInfos.last()->item == subItemInfos->item) {
@@ -903,7 +985,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(itemRenderInfos& 
 
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -941,7 +1023,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos&
 
 	for (int i = 0; i < nItems; i++) {
 
-		itemRenderInfos* subItemInfos = new itemRenderInfos();
+		ItemRenderInfos* subItemInfos = new ItemRenderInfos();
 		subItemInfos->item = itemInfos.item->subitems()[i];
 		subItemInfos->itemValue = itemInfos.itemValue.getValue(subItemInfos->item->dataKey());
 		subItemInfos->currentSize = subItemInfos->item->initialSize();
@@ -950,7 +1032,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos&
 		subItemInfos->continuationIndex = QVariant();
 		subItemInfos->layoutStatus = Success;
 
-		itemRenderInfos* previousItemRenderInfos = nullptr;
+		ItemRenderInfos* previousItemRenderInfos = nullptr;
 
 		if (previousRender != nullptr) {
 			if (previousRender->subitemsRenderInfos.size() > i) {
@@ -992,7 +1074,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(itemRenderInfos&
 
 	return status;
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -1080,7 +1162,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(itemRenderInfos& 
 	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(itemRenderInfos& itemInfos, itemRenderInfos* previousRender){
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender){
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -1128,7 +1210,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(itemRenderInfos&
 
 	return status;
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(itemRenderInfos& itemInfos, itemRenderInfos* previousRender) {
+DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
 	if (_pluginManager == nullptr) {
 		return RenderingStatus{OtherError, QObject::tr("Missing plugin manager")};
@@ -1181,7 +1263,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(itemRenderInfos
 }
 
 
-DocumentRenderer::RenderingStatus DocumentRenderer::renderItem(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderItem(ItemRenderInfos& itemInfos) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -1216,9 +1298,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderItem(itemRenderInfos& 
 }
 
 
-DocumentRenderer::RenderingStatus DocumentRenderer::renderCondition(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderCondition(ItemRenderInfos& itemInfos) {
 
-	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+	for (ItemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
 		if (subitemInfos == nullptr) {
 			continue;
 		}
@@ -1232,11 +1314,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderCondition(itemRenderIn
 	return RenderingStatus{Success, "", itemInfos.currentSize};
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(ItemRenderInfos& itemInfos) {
 
 	RenderingStatus status{Success, ""};
 
-	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+	for (ItemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
 		if (subitemInfos == nullptr) {
 			continue;
 		}
@@ -1254,7 +1336,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(itemRenderInfos& 
 	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(ItemRenderInfos& itemInfos) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -1271,7 +1353,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(itemRenderInfos& 
 
 	RenderingStatus status{Success, ""};
 
-	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+	for (ItemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
 		if (subitemInfos == nullptr) {
 			continue;
 		}
@@ -1292,11 +1374,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(itemRenderInfos& 
 
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderList(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderList(ItemRenderInfos& itemInfos) {
 
 	RenderingStatus status{Success, ""};
 
-	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+	for (ItemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
 		if (subitemInfos == nullptr) {
 			continue;
 		}
@@ -1314,7 +1396,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderList(itemRenderInfos& 
 	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(ItemRenderInfos& itemInfos) {
 
 	RenderingStatus status{Success, ""};
 
@@ -1339,7 +1421,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(itemRenderInfos&
 		_painter->setPen(oldPen);
 	}
 
-	for (itemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
+	for (ItemRenderInfos* subitemInfos : itemInfos.subitemsRenderInfos) {
 		if (subitemInfos == nullptr) {
 			continue;
 		}
@@ -1358,7 +1440,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(itemRenderInfos&
 
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderText(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& itemInfos) {
 
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -1402,7 +1484,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(itemRenderInfos& 
 	return status;
 
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos& itemInfos) {
 
 	if (itemInfos.item == nullptr) {
         return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
@@ -1442,7 +1524,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(itemRenderInfos&
 
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::renderPlugin(itemRenderInfos& itemInfos) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderPlugin(ItemRenderInfos& itemInfos) {
 
 	if (_pluginManager == nullptr) {
 		return RenderingStatus{OtherError, QObject::tr("Missing plugin manager")};
