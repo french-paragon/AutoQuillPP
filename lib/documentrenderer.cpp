@@ -1062,8 +1062,18 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(itemRenderInfos& 
 	RenderingStatus status{Success, "", renderSize};
 
 	if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
-		status.status = MissingSpace;
-		status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
+		//in can the initial size is not enough
+
+		QSizeF maxRenderSize(itemInfos.item->maxSize());
+		QRectF rectangle = QRectF(origin, maxRenderSize);
+		boundingRect = fontMetric.boundingRect(rectangle.toRect(), flags,  text);
+
+		if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
+			status.status = MissingSpace;
+			status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
+		} else {
+			status.renderSize = boundingRect.size();
+		}
 	}
 
 	itemInfos.layoutStatus = status.status;
