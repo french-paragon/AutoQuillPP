@@ -13,5 +13,9 @@ int main(int argc, char** argv) {
     MainWindows mw;
     mw.show();
 
+	if (argc > 1) {
+		mw.openProjectFromFile(argv[1]);
+	}
+
     return app.exec();
 }

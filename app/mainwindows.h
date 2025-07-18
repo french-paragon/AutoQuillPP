@@ -24,6 +24,8 @@ public:
 	AutoQuill::DocumentTemplate* currentDocumentTemplate() const;
 	void setCurrentDocumentTemplate(AutoQuill::DocumentTemplate* docTemplate);
 
+	void openProjectFromFile(QString const& path);
+
 protected:
 
 	struct InsertPos {

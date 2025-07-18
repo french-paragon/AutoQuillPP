@@ -635,6 +635,22 @@ void MainWindows::saveProjectAs() {
 
     _currentDocumentTemplate->saveTo(_currentDocumentTemplate->currentSavePath());
 }
+
+void MainWindows::openProjectFromFile(QString const& filePath) {
+
+	if (_currentDocumentTemplate == nullptr) {
+		AutoQuill::DocumentTemplate* documentTemplate = new AutoQuill::DocumentTemplate(this);
+		setCurrentDocumentTemplate(documentTemplate);
+	}
+
+	if (filePath.isEmpty()) {
+		return;
+	}
+
+	_currentDocumentTemplate->loadFrom(filePath);
+	_currentDocumentTemplate->setCurrentSavePath(filePath);
+}
+
 void MainWindows::openProject() {
 
 	if (_currentDocumentTemplate == nullptr) {
