@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QFile>
+#include <QMimeData>
 
 namespace AutoQuill {
 
@@ -165,6 +166,28 @@ bool DocumentTemplate::loadFrom(QString const& path) {
 	return configureFromJson(val);
 }
 
+
+DocumentItem* DocumentTemplate::findByReference(QString const& ref) const {
+
+	QStringList splitted = ref.split(REF_URL_SEP);
+
+	DocumentItem* ret = nullptr;
+
+	for (DocumentItem* item : qAsConst(_items)) {
+		if (item == nullptr) {
+			continue;
+		}
+
+		ret = item->findByReference(splitted);
+
+		if (ret != nullptr) {
+			break;
+		}
+	}
+
+	return ret;
+}
+
 DocumentTemplateModel::DocumentTemplateModel(QObject* parent) :
 	QAbstractItemModel(parent),
 	_root(nullptr)
@@ -175,11 +198,24 @@ DocumentTemplateModel::DocumentTemplateModel(QObject* parent) :
 
 QModelIndex DocumentTemplateModel::index(int row, int column, const QModelIndex &parent) const {
 
+	if (row < 0) {
+		return QModelIndex();
+	}
+
 	if (parent == QModelIndex()) {
+
+		if (row >= _root->subitems().size()) {
+			return QModelIndex();
+		}
+
 		return createIndex(row, column, _root->subitems()[row]);
 	}
 
 	DocumentItem* parentObj = reinterpret_cast<DocumentItem*>(parent.internalPointer());
+
+	if (row >= parentObj->subitems().size()) {
+		return QModelIndex();
+	}
 
 	return createIndex(row, column, parentObj->subitems()[row]);
 }
@@ -316,8 +352,151 @@ bool DocumentTemplateModel::setData(const QModelIndex &index, const QVariant &va
 }
 Qt::ItemFlags DocumentTemplateModel::flags(const QModelIndex &index) const {
 
-	return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+	return QAbstractItemModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled | Qt::ItemIsEditable;
 
+}
+
+Qt::DropActions DocumentTemplateModel::supportedDragActions() const {
+	return Qt::MoveAction;
+}
+Qt::DropActions DocumentTemplateModel::supportedDropActions() const {
+	return Qt::MoveAction;
+}
+
+bool DocumentTemplateModel::canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) const {
+
+	if (action != Qt::MoveAction) {
+		return false;
+	}
+
+	if (!data->hasFormat("application/autoquilldocitemref")) {
+		return false;
+	}
+
+	QByteArray encodedData = data->data("application/autoquilldocitemref");
+	QStringList lines = QString::fromUtf8(encodedData).split('\n');
+
+	if (lines.isEmpty()) {
+		return true;
+	}
+
+	DocumentItem* target = nullptr;
+
+	if (parent != QModelIndex()) {
+		target = reinterpret_cast<DocumentItem*>(parent.internalPointer());
+
+		if (target == nullptr) {
+			return false;;
+		}
+	}
+
+	for (int i = lines.size()-1; i >= 0; i--) {
+		DocumentItem* item = _root->findByReference(lines[i]);
+
+		if (item == nullptr) {
+			continue;
+		}
+
+		if (target != nullptr) {
+			if (item->hasDescendant(target) or item == target) {
+				return false;
+			}
+
+			if (!target->supportedSubTypes().contains(item->getType())) {
+				return false;
+			}
+		} else {
+			if (!DocumentItem::supportedRootTypes().contains(item->getType())) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+
+}
+
+bool DocumentTemplateModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) {
+
+	if (action != Qt::MoveAction) {
+		return false;
+	}
+
+	if (!data->hasFormat("application/autoquilldocitemref")) {
+		return false;
+	}
+
+	QByteArray encodedData = data->data("application/autoquilldocitemref");
+	QStringList lines = QString::fromUtf8(encodedData).split('\n');
+
+	if (lines.isEmpty()) {
+		return true;
+	}
+
+	DocumentItem* target = nullptr;
+
+	if (parent != QModelIndex()) {
+		target = reinterpret_cast<DocumentItem*>(parent.internalPointer());
+
+		if (target == nullptr) {
+			return false;;
+		}
+	}
+
+	for (int i = lines.size()-1; i >= 0; i--) {
+		DocumentItem* item = _root->findByReference(lines[i]);
+
+		if (item == nullptr) {
+			continue;
+		}
+
+		if (target != nullptr) {
+			if (item->hasDescendant(target) or item == target) {
+				continue;
+			}
+		}
+
+		QModelIndex itemIdx = indexFromItem(item);
+
+		moveItem(itemIdx, (row >= 0) ? row : 0, parent);
+	}
+
+	return true;
+
+}
+
+QStringList DocumentTemplateModel::mimeTypes() const {
+	QStringList types;
+	types << "application/autoquilldocitemref";
+	return types;
+}
+
+QMimeData* DocumentTemplateModel::mimeData(const QModelIndexList &indexes) const {
+	QMimeData *mimeData = new QMimeData;
+	QByteArray encodedData;
+
+	QStringList lines;
+	lines.reserve(indexes.size());
+
+	for (const QModelIndex &index : indexes) {
+		if (index.isValid()) {
+
+			DocumentItem* target = reinterpret_cast<DocumentItem*>(index.internalPointer());
+
+			if (target == nullptr) {
+				continue;
+			}
+
+			QString ref = target->buildRef();
+
+			lines << ref;
+		}
+	}
+
+	encodedData = lines.join('\n').toUtf8();
+
+	mimeData->setData("application/autoquilldocitemref", encodedData);
+	return mimeData;
 }
 
 QModelIndex DocumentTemplateModel::indexFromItem(DocumentItem* item) {
@@ -336,7 +515,7 @@ QModelIndex DocumentTemplateModel::indexFromItem(DocumentItem* item) {
 
 	int row = parentItem->subitems().indexOf(item);
 
-	if (row < 0 or row >= _root->subitems().size()) {
+	if (row < 0 or row >= parentItem->subitems().size()) {
 		return QModelIndex();
 	} else {
 		return createIndex(row,0,item);
@@ -382,6 +561,7 @@ void DocumentTemplateModel::insertItem(QModelIndex const& parent, int pos, Docum
 	endInsertRows();
 
 }
+
 void DocumentTemplateModel::removeItem(QModelIndex const& itemIndex) {
 
 	if (itemIndex == QModelIndex()) {
@@ -401,7 +581,8 @@ void DocumentTemplateModel::removeItem(QModelIndex const& itemIndex) {
 		row = pItem->subitems().indexOf(target);
 	}
 
-	if (row < 0 or row >= rowCount(parent)) {
+	int pRows = rowCount(parent);
+	if (row < 0 or row >= pRows) {
 		return;
 	}
 
@@ -416,6 +597,93 @@ void DocumentTemplateModel::removeItem(QModelIndex const& itemIndex) {
 	}
 
 	endRemoveRows();
+
+}
+void DocumentTemplateModel::moveItem(QModelIndex const& itemIndex, int pos, QModelIndex const& parent) {
+
+	if (itemIndex == QModelIndex()) {
+		return;
+	}
+
+	DocumentItem* item = reinterpret_cast<DocumentItem*>(itemIndex.internalPointer());
+
+	if (item == nullptr) {
+		return;
+	}
+
+	QModelIndex oldParent = itemIndex.parent();
+
+	if (oldParent == parent) {
+		if (pos == itemIndex.row() or pos == itemIndex.row()+1) {
+			return;
+		}
+	}
+
+	DocumentItem* oldPItem = nullptr;
+
+	if (oldParent != QModelIndex()) {
+		oldPItem = reinterpret_cast<DocumentItem*>(oldParent.internalPointer());
+
+		if (oldPItem == nullptr) {
+			return;
+		}
+	}
+
+	if (oldPItem == nullptr) {
+		return;
+	}
+
+	DocumentItem* newPItem = nullptr;
+
+	if (parent != QModelIndex()) {
+		newPItem = reinterpret_cast<DocumentItem*>(parent.internalPointer());
+
+		if (newPItem == nullptr) {
+			return;
+		}
+	}
+
+	QList<DocumentItem*>* sourcePlace = &_root->_items;
+	QList<DocumentItem*>* targetPlace = &_root->_items;
+
+	if (oldPItem != nullptr) {
+		sourcePlace = &oldPItem->_items;
+	}
+
+	if (newPItem != nullptr) {
+		targetPlace = &newPItem->_items;
+	}
+
+	if (sourcePlace == nullptr) {
+		return;
+	}
+
+	if (targetPlace == nullptr) {
+		return;
+	}
+
+	int oldRow = itemIndex.row();
+	int aPos = pos;
+
+	if (sourcePlace == targetPlace) {
+		if (oldRow < aPos) {
+			aPos--;
+		}
+	}
+
+
+	beginMoveRows(oldParent, oldRow, oldRow, parent, pos);
+	sourcePlace->removeAt(itemIndex.row());
+
+	targetPlace->insert(pos, item);
+
+	if (newPItem != nullptr) {
+		item->setParent(newPItem);
+	} else {
+		item->setParent(_root);
+	}
+
+	endMoveRows();
 
 }
 

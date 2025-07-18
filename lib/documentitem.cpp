@@ -374,4 +374,109 @@ DocumentItem* DocumentItem::buildFromJson(QJsonValue const& value) {
 	return item;
 }
 
+QString DocumentItem::buildRef() {
+
+	QStringList refsList;
+
+	DocumentItem* target = this;
+	DocumentItem* pItem = parentDocumentItem();
+
+	if (pItem != nullptr) {
+		QString parentRef = pItem->buildRef();
+
+		if (_ref.isEmpty()) {
+			QList<DocumentItem*> const& siblings = pItem->subitems();
+
+			QSet<int> usedNums;
+			usedNums.reserve(siblings.size());
+
+			for (DocumentItem* item : siblings) {
+				bool ok = true;
+				int n = item->_ref.toInt(&ok);
+
+				if (ok) {
+					usedNums.insert(n);
+				}
+			}
+
+			int r_n = 1;
+
+			while (usedNums.contains(r_n)) {
+				r_n++;
+			}
+
+			_ref = QString("%1").arg(r_n);
+		}
+
+		return parentRef + DocumentTemplate::REF_URL_SEP + _ref;
+	}
+
+	DocumentTemplate* pTemplate = qobject_cast<DocumentTemplate*>(parent());
+
+	if (pTemplate == nullptr) {
+		return "";
+	}
+
+	if (_ref.isEmpty()) {
+		QList<DocumentItem*> const& siblings = pTemplate->subitems();
+
+		QSet<int> usedNums;
+		usedNums.reserve(siblings.size());
+
+		for (DocumentItem* item : siblings) {
+			bool ok = true;
+			int n = item->_ref.toInt(&ok);
+
+			if (ok) {
+				usedNums.insert(n);
+			}
+		}
+
+		int r_n = 1;
+
+		while (usedNums.contains(r_n)) {
+			r_n++;
+		}
+
+		_ref = QString("%1").arg(r_n);
+	}
+
+	return _ref;
+}
+
+DocumentItem* DocumentItem::findByReference(QStringList const& refs) {
+
+	if (_ref.isEmpty()) {
+		return nullptr;
+	}
+
+	QString ref0 = refs[0];
+
+	if (ref0 != _ref) {
+		return nullptr;
+	}
+
+	QStringList leftOver = refs.mid(1);
+
+	if (leftOver.isEmpty()) {
+		return this;
+	}
+
+	DocumentItem* ret = nullptr;
+
+	for (DocumentItem* item : qAsConst(_items)) {
+		if (item == nullptr) {
+			continue;
+		}
+
+		ret = item->findByReference(leftOver);
+
+		if (ret != nullptr) {
+			break;
+		}
+	}
+
+	return ret;
+}
+
 } // namespace AutoQuill

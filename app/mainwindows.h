@@ -41,6 +41,7 @@ protected:
 	void refreshPropertiesWidget();
 
 	void viewItemPage(QModelIndex const& clickedIdx);
+	void projectViewContextMenu(QPoint const& pos);
 
 	void saveProject();
 	void saveProjectAs();

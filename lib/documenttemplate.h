@@ -14,6 +14,12 @@ class DocumentTemplate : public QObject
 {
     Q_OBJECT
 public:
+
+	/*!
+	 * \brief REF_URL_SEP is the separator used to build references url.
+	 */
+	static constexpr char REF_URL_SEP = '/';
+
 	explicit DocumentTemplate(QObject* parent = nullptr);
 
 
@@ -41,6 +47,8 @@ public:
         }
     }
 
+	DocumentItem* findByReference(QString const& ref) const;
+
 Q_SIGNALS:
 
 	void aboutToBeReset();
@@ -51,6 +59,8 @@ protected:
 	QList<DocumentItem*> _items;
 
     QString _currentSavePath;
+
+	friend class DocumentTemplateModel;
 };
 
 class DocumentTemplateModel : public QAbstractItemModel {
@@ -64,21 +74,31 @@ public:
 
 	explicit DocumentTemplateModel(QObject* parent = nullptr);
 
-	QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;
-	QModelIndex parent(const QModelIndex &index) const;
+	QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
+	QModelIndex parent(const QModelIndex &index) const override;
 
-	int rowCount(const QModelIndex &parent = QModelIndex()) const;
-	int columnCount(const QModelIndex &parent = QModelIndex()) const;
+	int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+	int columnCount(const QModelIndex &parent = QModelIndex()) const override;
 
-	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
-	bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole);
-	Qt::ItemFlags flags(const QModelIndex &index) const;
+	bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+	Qt::ItemFlags flags(const QModelIndex &index) const override;
+
+	Qt::DropActions supportedDragActions() const override;
+	Qt::DropActions supportedDropActions() const override;
+
+	bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) const override;
+	bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) override;
+
+	QStringList mimeTypes() const override;
+	QMimeData* mimeData(const QModelIndexList &indexes) const override;
 
 	QModelIndex indexFromItem(DocumentItem* item);
 
 	void insertItem(QModelIndex const& parent, int pos, DocumentItem* item);
 	void removeItem(QModelIndex const& itemIndex);
+	void moveItem(QModelIndex const& itemIndex, int pos, QModelIndex const& parent);
 
 	void setDocumentTemplate(DocumentTemplate* docTemplate);
 

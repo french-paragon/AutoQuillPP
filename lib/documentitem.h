@@ -547,6 +547,19 @@ public:
 
 		return pItem->parentPage();
 	}
+	inline bool hasDescendant(DocumentItem* item) const {
+
+		DocumentItem* pItem = item->parentDocumentItem();
+
+		while (pItem != nullptr) {
+			if (pItem == this) {
+				return true;
+			}
+			pItem = pItem->parentDocumentItem();
+		}
+
+		return false;
+	}
 
 	inline void insertSubItem(DocumentItem* item, int position = -1) {
 
@@ -598,6 +611,21 @@ public:
     QJsonValue encapsulateToJson() const;
 	static DocumentItem* buildFromJson(QJsonValue const& value);
 
+	/*!
+	 * \brief buildRef build a reference which allows to find the object later
+	 * \return the reference as a string.
+	 *
+	 * This function will set the ref if it does not exist. The ref is guaranteed to not change while the
+	 * template is open, but will not be saved and might be different when regenerated.
+	 *
+	 * This function can also set the reference of the item parents, and their parents, and so on and so forth.
+	 *
+	 * after a reference is built, the object can be found using findByReference in a document template.
+	 */
+	QString buildRef();
+
+	DocumentItem* findByReference(QStringList const& refs);
+
 Q_SIGNALS:
 
     void directionChanged();
@@ -633,6 +661,8 @@ protected:
 
     bool propertyIsStoredForCurrentType(const char* propName) const;
 
+	QString _ref;
+
     Type _type;
 
     Direction _direction;
@@ -663,6 +693,8 @@ protected:
     QString _data;
 
 	QList<DocumentItem*> _items;
+
+	friend class DocumentTemplateModel;
 };
 
 } // namespace AutoQuill

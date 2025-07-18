@@ -74,9 +74,18 @@ MainWindows::MainWindows(QWidget *parent) :
 	_projectTreeViewWidget->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
 	_projectTreeViewWidget->header()->setVisible(false);
 
+	_projectTreeViewWidget->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
+	_projectTreeViewWidget->setDragEnabled(true);
+	_projectTreeViewWidget->setAcceptDrops(true);
+	_projectTreeViewWidget->setDropIndicatorShown(true);
+	_projectTreeViewWidget->setDefaultDropAction(Qt::DropAction::MoveAction);
+
+	_projectTreeViewWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
 	connect(_projectTreeViewWidget, &QTreeView::clicked, this, &MainWindows::refreshNewItemMenu);
 	connect(_projectTreeViewWidget, &QTreeView::clicked, this, &MainWindows::refreshPropertiesWidget);
 	connect(_projectTreeViewWidget, &QTreeView::clicked, this, &MainWindows::viewItemPage);
+	connect(_projectTreeViewWidget, &QTreeView::customContextMenuRequested, this, &MainWindows::projectViewContextMenu);
 
 	projectTreeDockWidgetLayout->addWidget(_projectTreeViewWidget);
 
@@ -598,6 +607,28 @@ void MainWindows::viewItemPage(QModelIndex const& clickedIdx) {
 
 	_docPreviewWidget->gotoPage(pageId);
 
+}
+void MainWindows::projectViewContextMenu(QPoint const& pos) {
+
+	QModelIndex idx = _projectTreeViewWidget->indexAt(pos);
+
+	if (idx == QModelIndex()) {
+		return;
+	}
+
+	QMenu menu;
+
+	QAction* remove = menu.addAction(tr("Remove"));
+
+	connect(remove, &QAction::triggered, this, [this, idx] () {
+		AutoQuill::DocumentTemplateModel* model =
+				qobject_cast<AutoQuill::DocumentTemplateModel*>(_projectTreeViewWidget->model());
+		if (model != nullptr) {
+			model->removeItem(idx);
+		}
+	});
+
+	menu.exec(_projectTreeViewWidget->mapToGlobal(pos));
 }
 
 void MainWindows::saveProject() {
