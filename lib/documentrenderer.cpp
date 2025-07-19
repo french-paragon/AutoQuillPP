@@ -1189,7 +1189,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(ItemRenderInfos&
 	}
 
 	if (image.isNull()) {
-		return RenderingStatus{MissingData, QObject::tr("Cannot load data for Image: %1").arg(itemInfos.item->objectName())};
+		if (variant.canConvert<QString>()) {
+			if (!variant.toString().isEmpty()) {
+				return RenderingStatus{MissingData, QObject::tr("Cannot load data for Image: %1").arg(itemInfos.item->objectName())};
+			}
+		} else {
+			return RenderingStatus{MissingData, QObject::tr("Cannot load data for Image: %1").arg(itemInfos.item->objectName())};
+		}
 	}
 
 	QPointF origin = _renderContext.origin + itemInfos.item->origin();
@@ -1412,6 +1418,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(ItemRenderInfos&
 		borderPen.setColor(itemInfos.item->borderColor());
 		borderPen.setWidthF(itemInfos.item->borderWidth());
 		borderPen.setStyle(Qt::SolidLine);
+
+		if (itemInfos.item->borderWidth() < 0.001) {
+			borderPen.setStyle(Qt::NoPen);
+		}
+
 		borderPen.setJoinStyle(Qt::MiterJoin);
 
 		QPen oldPen = _painter->pen();
@@ -1470,9 +1481,26 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 	font.setPointSizeF(itemInfos.item->fontSize());
 	_painter->setFont(font);
 
+	int flags = Qt::AlignLeft;
+
+	switch (itemInfos.item->textAlign()) {
+	case DocumentItem::TextAlign::AlignLeft:
+		flags = Qt::AlignLeft;
+		break;
+	case DocumentItem::TextAlign::AlignRight:
+		flags = Qt::AlignRight;
+		break;
+	case DocumentItem::TextAlign::AlignCenter:
+		flags = Qt::AlignHCenter;
+		break;
+	case DocumentItem::TextAlign::AlignJustify:
+		flags = Qt::AlignJustify;
+		break;
+	}
+
 	QRectF rectangle = QRectF(origin, renderSize);
 	QRectF boundingRect;
-	_painter->drawText(rectangle, 0, text, &boundingRect);
+	_painter->drawText(rectangle, flags, text, &boundingRect);
 
 	RenderingStatus status{Success, "", boundingRect.size()};
 
@@ -1508,7 +1536,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos&
     }
 
     if (image.isNull()) {
-		return RenderingStatus{MissingData, QObject::tr("Not enough space to render Image: %1").arg(itemInfos.item->objectName())};
+		if (variant.canConvert<QString>()) {
+			if (!variant.toString().isEmpty()) {
+				return RenderingStatus{MissingData, QObject::tr("Cannot load data for Image: %1").arg(itemInfos.item->objectName())};
+			}
+		} else {
+			return RenderingStatus{MissingData, QObject::tr("Cannot load data for Image: %1").arg(itemInfos.item->objectName())};
+		}
     }
 
 	QPointF origin = itemInfos.currentOrigin;
