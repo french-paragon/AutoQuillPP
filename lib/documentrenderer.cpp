@@ -267,7 +267,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutItem(ItemRenderInfos& 
 	case DocumentItem::Type::Image:
 		return layoutImage(itemInfos, previousRender);
 	case DocumentItem::Type::Plugin:
-		return RenderingStatus{OtherError, QObject::tr("Plugins not yet supported, block : %1").arg(itemInfos.item->objectName())};
+		return layoutPlugin(itemInfos, previousRender);
 	case DocumentItem::Type::Invalid:
 		return RenderingStatus{OtherError, QObject::tr("Invalid block : %1").arg(itemInfos.item->objectName())};
 	}
