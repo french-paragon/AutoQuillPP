@@ -1276,7 +1276,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos
 	itemInfos.currentSize = requiredRegion.size();
 	itemInfos.layoutStatus = Success;
 
-	return{Success};
+	QPointF delta = requiredRegion.bottomRight() - origin;
+
+	return{Success, "", QSizeF(delta.x(), delta.y())};
 }
 
 
