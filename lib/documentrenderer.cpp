@@ -1066,6 +1066,14 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 			}
 			status.message += itemStatus.message;
 		}
+
+		if (subItemInfos->item->posX() + itemStatus.renderSize.width() > renderSize.width()) {
+			renderSize.rwidth() = std::min(subItemInfos->item->posX() + itemStatus.renderSize.width(), itemInfos.item->maxWidth());
+		}
+
+		if (subItemInfos->item->posY() + itemStatus.renderSize.height() > renderSize.height()) {
+			renderSize.rheight() = std::min(subItemInfos->item->posY() + itemStatus.renderSize.height(), itemInfos.item->maxHeight());
+		}
 	}
 
 	status.renderSize = renderSize;
@@ -1161,6 +1169,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	}
 
 	itemInfos.layoutStatus = status.status;
+	itemInfos.currentSize = status.renderSize;
 	return status;
 
 }
