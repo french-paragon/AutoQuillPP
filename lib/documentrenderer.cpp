@@ -1127,7 +1127,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	QFont font("serif", 12);
 	font.setFamily(itemInfos.item->fontName());
 	font.setPointSizeF(itemInfos.item->fontSize());
-	QFontMetrics fontMetric(font);
+	_painter->setFont(font);
 
 	int flags = Qt::AlignLeft;
 
@@ -1149,7 +1149,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	flags |= Qt::TextWordWrap;
 
 	QRectF rectangle = QRectF(origin, renderSize);
-	QRectF boundingRect = fontMetric.boundingRect(rectangle.toRect(), flags,  text);
+	QRectF boundingRect = _painter->boundingRect(rectangle.toRect(), flags,  text);
 
 	RenderingStatus status{Success, "", renderSize};
 
@@ -1158,7 +1158,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 
 		QSizeF maxRenderSize(itemInfos.item->maxSize());
 		QRectF rectangle = QRectF(origin, maxRenderSize);
-		boundingRect = fontMetric.boundingRect(rectangle.toRect(), flags,  text);
+		boundingRect = _painter->boundingRect(rectangle.toRect(), flags,  text);
 
 		if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
 			status.status = MissingSpace;
