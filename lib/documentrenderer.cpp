@@ -623,7 +623,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
-	_renderContext = RenderContext{itemInfos.item->direction(), itemInfos.item->origin(), itemInfos.item->initialSize()};
+    _renderContext = RenderContext{itemInfos.item->direction(), QPointF(0,0), itemInfos.item->initialSize()};
 
 	RenderingStatus status{Success, ""};
 
