@@ -6,6 +6,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
+#include <QSet>
+
 #include <QMetaObject>
 #include <QMetaProperty>
 
