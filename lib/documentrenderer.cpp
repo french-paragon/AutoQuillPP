@@ -1553,10 +1553,43 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos&
 
 	QSizeF renderSize = itemInfos.currentSize;
 
+	QSizeF imSize = image.size();
+	QSizeF posDelta(0,0);
+
+	if (renderSize.width() <= 0 or renderSize.height() <= 0 or imSize.width() <= 0 or imSize.height() <= 0) {
+		return RenderingStatus {Success, "", QSizeF(0,0)};;
+	}
+
+	double imAspectRatio = imSize.width()/imSize.height();
+	double regionAspectRatio = renderSize.width()/renderSize.height();
+
+	if (imAspectRatio >= regionAspectRatio) { //image is relatively larger than render region
+		double scale = renderSize.width()/imSize.width();
+
+		QSize newImSize(renderSize.width(), scale*imSize.height());
+
+		double deltaY = (renderSize.height() - newImSize.height())/2;
+
+		origin.ry() += deltaY;
+		posDelta.rheight() += deltaY;
+		renderSize = newImSize;
+
+	} else {
+		double scale = renderSize.height()/imSize.height();
+
+		QSize newImSize(scale*imSize.width(), renderSize.height());
+
+		double deltaX = (renderSize.width() - newImSize.width())/2;
+
+		origin.rx() += deltaX;
+		posDelta.rwidth() += deltaX;
+		renderSize = newImSize;
+	}
+
 	QRectF rectangle = QRectF(origin, renderSize);
     _painter->drawImage(rectangle, image);
 
-    RenderingStatus status{Success, "", rectangle.size()};
+	RenderingStatus status{Success, "", rectangle.size() + posDelta};
 
     return status;
 
