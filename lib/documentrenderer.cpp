@@ -1138,6 +1138,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 		break;
 	}
 
+	flags |= Qt::TextWordWrap;
+
 	QRectF rectangle = QRectF(origin, renderSize);
 	QRectF boundingRect = fontMetric.boundingRect(rectangle.toRect(), flags,  text);
 
@@ -1497,6 +1499,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 		flags = Qt::AlignJustify;
 		break;
 	}
+
+	flags |= Qt::TextWordWrap;
 
 	QRectF rectangle = QRectF(origin, renderSize);
 	QRectF boundingRect;
