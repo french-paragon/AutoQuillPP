@@ -1247,7 +1247,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos
 
 	if (itemInitialSize.width() > _renderContext.region.width() or
 		itemInitialSize.height() > _renderContext.region.height()) {
-		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Image: %1").arg(itemInfos.item->objectName())};
+		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Plugin: %1").arg(itemInfos.item->objectName())};
 	}
 
 	if (itemInitialSize.width() < itemInfos.maxSize.width()) {
@@ -1271,6 +1271,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos
 	}
 
 	QRectF requiredRegion = plugin->getMinimalSpace(QRectF(origin, itemInitialSize), itemInfos.itemValue);
+
+	//TODO: more carefull size checking here
 
 	itemInfos.currentOrigin = requiredRegion.topLeft();
 	itemInfos.currentSize = requiredRegion.size();
