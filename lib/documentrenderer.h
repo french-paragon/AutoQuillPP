@@ -8,6 +8,7 @@
 
 class QPainter;
 class QPdfWriter;
+class QIODevice;
 
 #include "./documentitem.h"
 #include "./documentdatainterface.h"
@@ -55,8 +56,10 @@ public :
 	 * \return the LayoutResults, containing the list of pages, as well as the layout status
 	 */
 	LayoutResults layout(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager);
+	RenderingStatus render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QIODevice* device);
 	RenderingStatus render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
 
+	RenderingStatus render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QIODevice* device);
 	RenderingStatus render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename);
 
 

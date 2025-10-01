@@ -4,6 +4,7 @@
 
 #include <QPdfWriter>
 #include <QPainter>
+#include <QFile>
 
 #include "documenttemplate.h"
 #include "documentitem.h"
@@ -51,7 +52,8 @@ DocumentRenderer::LayoutResults DocumentRenderer::layout(DocumentDataInterface c
 
 	return {QVector<ItemRenderInfos*>(), layoutStatus};
 }
-DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename) {
+
+DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QIODevice* device) {
 
 	_pluginManager = &pluginManager;
 
@@ -67,7 +69,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 		delete _writer;
 	}
 
-	_writer = new QPdfWriter(filename);
+	_writer = new QPdfWriter(device);
 	_writer->setResolution(72);
 	_writer->setTitle(_docTemplate->objectName());
 	_writer->setPageMargins(QMarginsF(0,0,0,0));
@@ -131,9 +133,19 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 
 	return status;
 }
+DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename) {
+
+	QFile out(filename);
+
+	if (!out.open(QFile::WriteOnly)) {
+		return RenderingStatus{MissingModel, QObject::tr("Could not open file")};
+	}
+
+	return render(dataInterface, pluginManager, &out);
+}
 
 
-DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename) {
+DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QIODevice* device) {
 
 	_pluginManager = &pluginManager;
 
@@ -149,7 +161,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInf
 		delete _writer;
 	}
 
-	_writer = new QPdfWriter(filename);
+	_writer = new QPdfWriter(device);
 	_writer->setResolution(72);
 	_writer->setTitle(_docTemplate->objectName());
 	_writer->setPageMargins(QMarginsF(0,0,0,0));
@@ -187,6 +199,17 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInf
 	_writer = nullptr;
 
 	return status;
+}
+
+DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename) {
+
+	QFile out(filename);
+
+	if (!out.open(QFile::WriteOnly)) {
+		return RenderingStatus{MissingModel, QObject::tr("Could not open file")};
+	}
+
+	return render(layout, pluginManager, &out);
 
 }
 
