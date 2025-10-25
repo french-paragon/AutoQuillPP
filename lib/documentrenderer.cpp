@@ -47,10 +47,34 @@ DocumentRenderer::LayoutResults DocumentRenderer::layout(DocumentDataInterface c
 				delete item;
 			}
 		}
-		return {layout, layoutStatus};
-	}
 
-	return {QVector<ItemRenderInfos*>(), layoutStatus};
+        return {QVector<ItemRenderInfos*>(), layoutStatus};
+    }
+
+    return {layout, layoutStatus};
+}
+DocumentRenderer::LayoutResults DocumentRenderer::layoutHeadless(DocumentDataInterface const* dataInterface,
+                                                                 RenderPluginManager const& pluginManager,
+                                                                 QPainter* painterOverride) {
+    if (painterOverride == nullptr) {
+        RenderingStatus layoutStatus{OtherError, "Invalid external painter provided", QSizeF()};
+        return {QVector<ItemRenderInfos*>(), layoutStatus};
+    }
+
+    QPainter* oldPainter = _painter;
+    QPdfWriter* oldWriter = _writer;
+
+    _painter = painterOverride;
+    _writer = nullptr; //no writer means pageless mode
+
+    LayoutResults results = layout(dataInterface, pluginManager);
+
+    _painter = oldPainter;
+    _writer = oldWriter;
+
+    return results;
+
+
 }
 
 DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QIODevice* device) {
@@ -145,11 +169,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 }
 
 
-DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QIODevice* device) {
+DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout,
+                                                           RenderPluginManager const& pluginManager,
+                                                           QIODevice* device) {
 
 	_pluginManager = &pluginManager;
 
-	if (layout.isEmpty()) {
+    if (layout.isEmpty()) {
 		return RenderingStatus{MissingData, QObject::tr("Missing layout")};
 	}
 
@@ -189,9 +215,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInf
 		}
 	}
 
-	for (ItemRenderInfos* item : layout) {
-		delete item;
-	}
+    for (ItemRenderInfos* item : layout) {
+        delete item;
+    }
+
 
 	delete _painter;
 	delete _writer;
@@ -201,7 +228,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInf
 	return status;
 }
 
-DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename) {
+DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInfos*> const& layout,
+                                                           RenderPluginManager const& pluginManager,
+                                                           QString const& filename) {
 
 	QFile out(filename);
 
@@ -209,11 +238,69 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInf
 		return RenderingStatus{MissingModel, QObject::tr("Could not open file")};
 	}
 
-	return render(layout, pluginManager, &out);
+    return render(layout, pluginManager, &out);
 
 }
 
-void DocumentRenderer::ItemRenderInfos::translate(QPointF const& delta) {
+DocumentRenderer::RenderingStatus DocumentRenderer::renderItemToExternalPainter(ItemRenderInfos& itemInfos, QPainter* painterOverride) {
+    if (painterOverride == nullptr) {
+        return RenderingStatus{Status::OtherError, "Cannot render on null painter override"};
+    }
+
+    QPainter* oldPainter = _painter;
+    QPdfWriter* oldWriter = _writer;
+
+    _painter = painterOverride;
+    _writer = nullptr; //no writer means pageless mode
+
+    RenderingStatus status = renderItem(itemInfos);
+
+    _painter = oldPainter;
+    _writer = oldWriter;
+
+    return status;
+}
+
+int DocumentRenderer::getLayoutNPages(QVector<ItemRenderInfos*> const& layout) {
+    int n = 0;
+
+    for (int i = 0; i < layout.size(); i++) {
+        if (layout[i]->item->getType() == DocumentItem::Page) {
+            n += 1;
+        } else {
+            n += getLayoutNPages(layout[i]->subitemsRenderInfos);
+        }
+    }
+
+    return n;
+}
+
+ItemRenderInfos* DocumentRenderer::getLayoutNthPage(QVector<ItemRenderInfos*> const& layout, int n) {
+
+    int range = 0;
+
+    for (int i = 0; i < layout.size(); i++) {
+        if (layout[i]->item->getType() == DocumentItem::Page) {
+            if (range == n) {
+                return layout[i];
+            }
+            range++;
+        } else {
+            int nPages = getLayoutNPages(layout[i]->subitemsRenderInfos);
+
+            if (range+nPages < n) {
+                range += nPages;
+            } else {
+                return getLayoutNthPage(layout[i]->subitemsRenderInfos, n - range);
+            }
+        }
+    }
+
+    return nullptr;
+
+}
+
+void ItemRenderInfos::translate(QPointF const& delta) {
 	currentOrigin += delta;
 
 	for (ItemRenderInfos* subItemInfos : subitemsRenderInfos) {
@@ -647,6 +734,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 	}
 
     _renderContext = RenderContext{itemInfos.item->direction(), QPointF(0,0), itemInfos.item->initialSize()};
+    itemInfos.currentSize = itemInfos.item->initialSize();
 
 	RenderingStatus status{Success, ""};
 
@@ -1391,7 +1479,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(ItemRenderInfos& 
 	layout.setPageSize(pageSize);
 
 	//ensure painting start on a new page straight after setting the page layout.
-	if (_pagesWritten > 0) {
+    if (_pagesWritten > 0 and _writer != nullptr) {
 		_writer->newPage(); //create a new page in the writer.
 	}
 
@@ -1412,10 +1500,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(ItemRenderInfos& 
 		}
 	}
 
-	_pagesWritten++;
+    if (_writer != nullptr) {
+        _pagesWritten++;
+    }
 
 	return status;
-
 
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::renderList(ItemRenderInfos& itemInfos) {

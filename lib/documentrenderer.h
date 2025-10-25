@@ -19,6 +19,8 @@ class DocumentTemplate;
 class DocumentDataInterface;
 class RenderPluginManager;
 
+struct ItemRenderInfos;
+
 class DocumentRenderer
 {
 public :
@@ -37,16 +39,14 @@ public :
 		Status status;
 		QString message;
 		QSizeF renderSize;
-	};
-
-	struct ItemRenderInfos;
+    };
 
 	struct LayoutResults {
 		QVector<ItemRenderInfos*> layout;
 		RenderingStatus status;
 	};
 
-	DocumentRenderer(DocumentTemplate const& docTemplate);
+    DocumentRenderer(DocumentTemplate const& docTemplate);
 	~DocumentRenderer();
 
 	/*!
@@ -54,45 +54,60 @@ public :
 	 * \param dataInterface the data interface for the document
 	 * \param pluginManager the plugin manager to use for the plugins.
 	 * \return the LayoutResults, containing the list of pages, as well as the layout status
-	 */
-	LayoutResults layout(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager);
+     *
+     * Pay attention, the ItemRenderInfos in the layout keep a reference to the DocumentTemplate, so you need to ensure the
+     * document template is not destroyed before you are done using the layout!
+     */
+    LayoutResults layout(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager);
+    /*!
+     * \brief layoutHeadless does the same thing as layout, but using an external QPainter. Use this if you are using the renderer to paint to external QtSurfaces
+     * \param dataInterface the data interface to use
+     * \param pluginManager the plugin manager to use
+     * \param painterOverride the painter to use
+     * \return the LayoutResults, containing the list of pages, as well as the layout status
+     *
+     * Pay attention, the ItemRenderInfos in the layout keep a reference to the DocumentTemplate, so you need to ensure the
+     * document template is not destroyed before you are done using the layout!
+     */
+    LayoutResults layoutHeadless(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QPainter* painterOverride);
 	RenderingStatus render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QIODevice* device);
 	RenderingStatus render(DocumentDataInterface const* dataInterface, RenderPluginManager const& pluginManager, QString const& filename);
 
-	RenderingStatus render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QIODevice* device);
-	RenderingStatus render(QVector<ItemRenderInfos*> const& layout, RenderPluginManager const& pluginManager, QString const& filename);
+    /*!
+     * \brief render render the elements in a given layout
+     * \param layout the layout to render (the function will not take ownership and will not delete the layout)
+     * \param pluginManager the plugin manager to use
+     * \param device the device to render to
+     * \return a rendering status
+     */
+    RenderingStatus render(QVector<ItemRenderInfos*> const& layout,
+                           RenderPluginManager const& pluginManager,
+                           QIODevice* device);
+    /*!
+     * \brief render render the elements in a given layout
+     * \param layout the layout to render (the function will not take ownership and will not delete the layout)
+     * \param pluginManager the plugin manager to use
+     * \param filename the file to render to
+     * \return a rendering status
+     */
+    RenderingStatus render(QVector<ItemRenderInfos*> const& layout,
+                           RenderPluginManager const& pluginManager,
+                           QString const& filename);
 
+    /*!
+     * \brief renderItem render an item using a specific QPainter
+     * \param itemInfos the item to render
+     * \param painterOverride the painter to paint to
+     * \return a rendering status
+     *
+     * This function is meant to be used for previewing items, not to render the document.
+     * It will not assume there is a paged device underneath, so you need to ensure
+     * only one page is rendered.
+     */
+    RenderingStatus renderItemToExternalPainter(ItemRenderInfos& itemInfos, QPainter* painterOverride);
 
-	struct ItemRenderInfos {
-
-		ItemRenderInfos() {
-			toRender = true;
-		}
-
-		~ItemRenderInfos() {
-			for (ItemRenderInfos* itemRenderInfos : qAsConst(subitemsRenderInfos)) {
-				delete itemRenderInfos;
-			}
-		}
-
-		DocumentValue itemValue;
-		DocumentItem* item;
-		QPointF currentOrigin;
-		QSizeF currentSize;
-		QSizeF maxSize;
-		Status layoutStatus;
-		Status renderStatus;
-		bool toRender;
-		bool rendered;
-		QVariant continuationIndex;
-		QVector<ItemRenderInfos*> subitemsRenderInfos;
-
-		/*!
-		 * \brief translate translate the current item, and all subitems
-		 * \param delta the delta to apply to the origin.
-		 */
-		void translate(QPointF const& delta);
-	};
+    static int getLayoutNPages(QVector<ItemRenderInfos*> const& layout);
+    static ItemRenderInfos* getLayoutNthPage(QVector<ItemRenderInfos*> const& layout, int n);
 
 protected :
 
@@ -102,7 +117,7 @@ protected :
 		QSizeF region;
 	};
 
-	RenderingStatus layoutDocument(QVector<ItemRenderInfos*> & pages, DocumentDataInterface const* dataInterface);
+    RenderingStatus layoutDocument(QVector<ItemRenderInfos*> & layout, DocumentDataInterface const* dataInterface);
 	RenderingStatus layoutItem(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr, QVector<ItemRenderInfos*>* targetItemPool = nullptr);
 
 	RenderingStatus layoutCondition(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender = nullptr);
@@ -134,6 +149,37 @@ protected :
 
 	RenderPluginManager const* _pluginManager;
 	RenderContext _renderContext;
+};
+
+struct ItemRenderInfos {
+
+    ItemRenderInfos() {
+        toRender = true;
+    }
+
+    ~ItemRenderInfos() {
+        for (ItemRenderInfos* itemRenderInfos : qAsConst(subitemsRenderInfos)) {
+            delete itemRenderInfos;
+        }
+    }
+
+    DocumentValue itemValue;
+    DocumentItem* item;
+    QPointF currentOrigin;
+    QSizeF currentSize;
+    QSizeF maxSize;
+    DocumentRenderer::Status layoutStatus;
+    DocumentRenderer::Status renderStatus;
+    bool toRender;
+    bool rendered;
+    QVariant continuationIndex;
+    QVector<ItemRenderInfos*> subitemsRenderInfos;
+
+    /*!
+         * \brief translate translate the current item, and all subitems
+         * \param delta the delta to apply to the origin.
+         */
+    void translate(QPointF const& delta);
 };
 
 } // namespace AutoQuill
