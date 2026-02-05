@@ -3,6 +3,7 @@
 #include <QObject>
 
 #include <QPdfWriter>
+#include <QSvgRenderer>
 #include <QPainter>
 #include <QFile>
 
@@ -1658,7 +1659,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos&
         if (variant.canConvert<QImage>()) {
             image = qvariant_cast<QImage>(variant);
         } else if (variant.canConvert<QString>()) {
-            image = QImage(variant.toString());
+			QString path = variant.toString();
+
+			if (path.toLower().endsWith(".svg")) {
+				//ensure svg files are rendered with enough resolution
+				QSvgRenderer renderer(path);
+				renderer.setAspectRatioMode(Qt::KeepAspectRatio);
+
+				QSize targetSize = 300./72.*itemInfos.currentSize.toSize();
+
+				image = QImage(targetSize, QImage::Format_ARGB32);
+				image.fill(QColor(255,255,255,0));
+
+				QPainter painter(&image);
+				renderer.render(&painter, QRectF(QPointF(0,0), targetSize));
+			} else {
+				image = QImage(path);
+			}
         }
     } else {
 		image = QImage(itemInfos.item->data());
