@@ -113,8 +113,27 @@ protected :
 
 	struct RenderContext {
 		DocumentItem::Direction direction;
-		QPointF origin;
-		QSizeF region;
+        QPointF origin;
+        QSizeF region;
+        QSizeF maxRegion;
+
+        inline RenderContext constrainedTo(DocumentItem::Direction newDir, QPointF const& subItemPos, QSizeF const& initialSize, QSizeF const& maxSize) {
+            QSizeF newMaxSize = QSizeF(maxRegion.width()-subItemPos.x(),
+                   maxRegion.height()-subItemPos.y()).boundedTo(maxSize);
+            return RenderContext{newDir,
+                                 origin+subItemPos,
+                                 region.boundedTo(newMaxSize),
+                                 maxRegion.boundedTo(newMaxSize)};
+        }
+
+        inline RenderContext constrainedTo(QPointF const& subItemPos, QSizeF const& initialSize, QSizeF const& maxSize) {
+            QSizeF newMaxSize = QSizeF(region.width()-subItemPos.x(),
+                                       region.height()-subItemPos.y()).boundedTo(maxSize);
+            return RenderContext{direction,
+                                 origin+subItemPos,
+                                 region.boundedTo(newMaxSize),
+                                 maxRegion.boundedTo(newMaxSize)};
+        }
 	};
 
     RenderingStatus layoutDocument(QVector<ItemRenderInfos*> & layout, DocumentDataInterface const* dataInterface);

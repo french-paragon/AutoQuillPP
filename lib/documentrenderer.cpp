@@ -473,7 +473,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(ItemRenderIn
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
-	if (itemInfos.item == nullptr) {
+    if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
@@ -491,22 +491,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 
 	RenderContext oldContext = _renderContext;
 
-	QSizeF renderSize(0,0);
-	_renderContext = RenderContext{itemInfos.item->direction(),
-			oldContext.origin + itemInfos.item->origin(),
-			oldContext.region.boundedTo(itemInfos.item->initialSize())};
+    QSizeF renderSize(0,0);
+    _renderContext = _renderContext.constrainedTo(itemInfos.item->direction(),
+                                                  itemInfos.item->origin(),
+                                                  itemInfos.item->initialSize(),
+                                                  itemInfos.item->maxSize());
 
-	//resize the context to the max size in layout direction
-	if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
-			itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+    //resize the context to the max size in layout direction
+    if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+        itemInfos.item->direction() == DocumentItem::Top2Bottom) {
 
-		_renderContext.region.setHeight(itemInfos.item->maxHeight());
-		renderSize.setWidth(itemInfos.item->initialWidth());
+        _renderContext.region.setHeight(_renderContext.maxRegion.height());
+        renderSize.setWidth(_renderContext.region.width());
 
-	} else {
-		_renderContext.region.setWidth(itemInfos.item->maxWidth());
-		renderSize.setHeight(itemInfos.item->initialHeight());
-	}
+    } else {
+        _renderContext.region.setWidth(_renderContext.maxRegion.width());
+        renderSize.setHeight(_renderContext.region.height());
+    }
 
 	QString message = "";
 
@@ -559,10 +560,12 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 		ItemRenderInfos* previousInfos = nullptr;
 
 		if (previousRender != nullptr) {
-			if (i == startsId and previousRender->subitemsRenderInfos.last()->item == subItemInfos->item) {
+            if (i == startsId and
+                previousRender->subitemsRenderInfos.last()->item == subItemInfos->item and
+                previousRender->subitemsRenderInfos.last()->layoutStatus == NotAllItemsRendered) {
 				previousInfos = previousRender->subitemsRenderInfos.last();
 			}
-		}
+        }
 
 		RenderingStatus layoutStatus = layoutItem(*subItemInfos, previousInfos, &itemInfos.subitemsRenderInfos);
 
@@ -578,7 +581,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 				itemInfos.layoutStatus = NotAllItemsRendered;
 				itemInfos.subitemsRenderInfos.removeLast();
 				delete subItemInfos;
-				itemInfos.continuationIndex = i-1;
+                itemInfos.continuationIndex = i-1; //if the previous item still has elements to render
 			}
 			break;
 		} else if (layoutStatus.status == NotAllItemsRendered) {
@@ -591,20 +594,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 
 		switch(_renderContext.direction) {
 		case DocumentItem::Left2Right:
-			_renderContext.origin.rx() += layoutStatus.renderSize.width();
-			_renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.origin.rx() += layoutStatus.renderSize.width();
+            _renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.maxRegion.rwidth() -= layoutStatus.renderSize.width();
 			renderSize.rwidth() += layoutStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
 			break;
 		case DocumentItem::Right2Left:
-			_renderContext.origin.rx() -= layoutStatus.renderSize.width();
-			_renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.origin.rx() -= layoutStatus.renderSize.width();
+            _renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.maxRegion.rwidth() -= layoutStatus.renderSize.width();
 			renderSize.rwidth() += layoutStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
 			break;
 		case DocumentItem::Top2Bottom:
-			_renderContext.origin.ry() += layoutStatus.renderSize.height();
-			_renderContext.region.rheight() -= layoutStatus.renderSize.height();
+            _renderContext.origin.ry() += layoutStatus.renderSize.height();
+            _renderContext.region.rheight() -= layoutStatus.renderSize.height();
+            _renderContext.maxRegion.rheight() -= layoutStatus.renderSize.height();
 			renderSize.rwidth() = std::max(renderSize.width(), layoutStatus.renderSize.width());
 			renderSize.rheight() += layoutStatus.renderSize.height();
 			break;
@@ -734,7 +740,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
-    _renderContext = RenderContext{itemInfos.item->direction(), QPointF(0,0), itemInfos.item->initialSize()};
+    _renderContext = RenderContext{itemInfos.item->direction(), QPointF(0,0), itemInfos.item->initialSize(), itemInfos.item->initialSize()}; //init the context to the page size
     itemInfos.currentSize = itemInfos.item->initialSize();
 
 	RenderingStatus status{Success, ""};
@@ -852,21 +858,22 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 	RenderContext oldContext = _renderContext;
 
 	QSizeF renderSize(0,0);
-	_renderContext = RenderContext{itemInfos.item->direction(),
-			oldContext.origin + itemInfos.item->origin(),
-			oldContext.region.boundedTo(itemInfos.item->initialSize())};
+    _renderContext = _renderContext.constrainedTo(itemInfos.item->direction(),
+                                                  itemInfos.item->origin(),
+                                                  itemInfos.item->initialSize(),
+                                                  itemInfos.item->maxSize());
 
-	//resize the context to the max size in layout direction
-	if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
-			itemInfos.item->direction() == DocumentItem::Top2Bottom) {
+    //resize the context to the max size in layout direction
+    if (itemInfos.item->direction() == DocumentItem::Bottom2Top or
+        itemInfos.item->direction() == DocumentItem::Top2Bottom) {
 
-		_renderContext.region.setHeight(itemInfos.item->maxHeight());
-		renderSize.setWidth(itemInfos.item->initialWidth());
+        _renderContext.region.setHeight(_renderContext.maxRegion.height());
+        renderSize.setWidth(_renderContext.region.width());
 
-	} else {
-		_renderContext.region.setWidth(itemInfos.item->maxWidth());
-		renderSize.setHeight(itemInfos.item->initialHeight());
-	}
+    } else {
+        _renderContext.region.setWidth(_renderContext.maxRegion.width());
+        renderSize.setHeight(_renderContext.region.height());
+    }
 
 	QString message = "";
 
@@ -921,11 +928,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 
 		ItemRenderInfos* previousInfos = nullptr;
 
-		if (previousRender != nullptr) {
-			if (i == startsId and previousRender->subitemsRenderInfos.last()->item == subItemInfos->item) {
-				previousInfos = previousRender->subitemsRenderInfos.last();
-			}
-		}
+        if (previousRender != nullptr) {
+            if (i == startsId and
+                previousRender->subitemsRenderInfos.last()->item == subItemInfos->item and
+                previousRender->subitemsRenderInfos.last()->layoutStatus == NotAllItemsRendered) {
+                previousInfos = previousRender->subitemsRenderInfos.last();
+            }
+        }
 
 		RenderingStatus layoutStatus = layoutItem(*subItemInfos, previousInfos);
 
@@ -940,7 +949,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 				itemInfos.layoutStatus = NotAllItemsRendered;
 				itemInfos.subitemsRenderInfos.removeLast();
 				delete subItemInfos;
-				itemInfos.continuationIndex = i-1;
+                itemInfos.continuationIndex = i-1; //if the previous item still has elements to render
 			}
 			break;
 		} else if (layoutStatus.status == NotAllItemsRendered) {
@@ -953,19 +962,22 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 
 		switch(_renderContext.direction) {
 		case DocumentItem::Left2Right:
-			_renderContext.origin.rx() += layoutStatus.renderSize.width();
-			_renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.origin.rx() += layoutStatus.renderSize.width();
+            _renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.maxRegion.rwidth() -= layoutStatus.renderSize.width();
 			renderSize.rwidth() += layoutStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
 			break;
-		case DocumentItem::Right2Left:
-			_renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+        case DocumentItem::Right2Left:
+            _renderContext.region.rwidth() -= layoutStatus.renderSize.width();
+            _renderContext.maxRegion.rwidth() -= layoutStatus.renderSize.width();
 			renderSize.rwidth() += layoutStatus.renderSize.width();
 			renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
 			break;
 		case DocumentItem::Top2Bottom:
-			_renderContext.origin.ry() += layoutStatus.renderSize.height();
-			_renderContext.region.rheight() -= layoutStatus.renderSize.height();
+            _renderContext.origin.ry() += layoutStatus.renderSize.height();
+            _renderContext.region.rheight() -= layoutStatus.renderSize.height();
+            _renderContext.maxRegion.rheight() -= layoutStatus.renderSize.height();
 			renderSize.rwidth() = std::max(renderSize.width(), layoutStatus.renderSize.width());
 			renderSize.rheight() += layoutStatus.renderSize.height();
 			break;
@@ -1105,8 +1117,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 
 	QSizeF itemInitialSize = itemInfos.item->initialSize();
 
-	if (itemInitialSize.width() > _renderContext.region.width() or
-			itemInitialSize.height() > _renderContext.region.height()) {
+    if (itemInitialSize.width() > _renderContext.region.width() or
+            itemInitialSize.height() > _renderContext.region.height()) {
 		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Frame: %1").arg(itemInfos.item->objectName())};
 	}
 
@@ -1129,7 +1141,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 	QSizeF renderSize(itemInfos.item->initialSize());
 	_renderContext = RenderContext{itemInfos.item->direction(),
 			origin,
-			itemInfos.item->initialSize()};
+            itemInfos.item->initialSize(),
+            itemInfos.item->maxSize()};
 
 	RenderingStatus status{Success, ""};
 
