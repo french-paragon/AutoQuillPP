@@ -6,6 +6,7 @@
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QFile>
+#include <QFontMetricsF>
 
 #include "documenttemplate.h"
 #include "documentitem.h"
@@ -1274,7 +1275,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	flags |= Qt::TextWordWrap;
 
 	QRectF rectangle = QRectF(origin, renderSize);
-	QRectF boundingRect = _painter->boundingRect(rectangle.toRect(), flags,  text);
+    QFontMetricsF fontMetric(font);
+    QRectF boundingRect = fontMetric.boundingRect(rectangle, flags,  text);
 
 	RenderingStatus status{Success, "", renderSize};
 
@@ -1282,8 +1284,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 		//in can the initial size is not enough
 
 		QSizeF maxRenderSize(itemInfos.item->maxSize());
-		QRectF rectangle = QRectF(origin, maxRenderSize);
-		boundingRect = _painter->boundingRect(rectangle.toRect(), flags,  text);
+        QRectF rectangle = QRectF(origin, maxRenderSize);
+        boundingRect = fontMetric.boundingRect(rectangle, flags,  text);
 
 		if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
 			status.status = MissingSpace;
