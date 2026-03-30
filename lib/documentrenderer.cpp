@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QFile>
 #include <QFontMetricsF>
+#include <QTextLayout>
 
 #include "documenttemplate.h"
 #include "documentitem.h"
@@ -587,6 +588,19 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 			break;
 		} else if (layoutStatus.status == NotAllItemsRendered) {
 			itemInfos.layoutStatus = NotAllItemsRendered;
+
+            switch(_renderContext.direction) {
+            case DocumentItem::Left2Right:
+            case DocumentItem::Right2Left:
+                renderSize.rwidth() += layoutStatus.renderSize.width();
+                renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
+                break;
+            case DocumentItem::Top2Bottom:
+            case DocumentItem::Bottom2Top:
+                renderSize.rwidth() = std::max(renderSize.height(), layoutStatus.renderSize.height());
+                renderSize.rheight() += layoutStatus.renderSize.height();
+                break;
+            }
 			break;
 		} else if (layoutStatus.status != Success) {
 			itemInfos.layoutStatus = layoutStatus.status;
@@ -732,6 +746,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 
 	_renderContext = oldContext;
 
+    renderSize.rwidth() += itemInfos.item->origin().x();
+    renderSize.rheight() += itemInfos.item->origin().y();
 	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
 
 }
@@ -955,6 +971,19 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 			break;
 		} else if (layoutStatus.status == NotAllItemsRendered) {
 			itemInfos.layoutStatus = NotAllItemsRendered;
+
+            switch(_renderContext.direction) {
+            case DocumentItem::Left2Right:
+            case DocumentItem::Right2Left:
+                renderSize.rwidth() += layoutStatus.renderSize.width();
+                renderSize.rheight() = std::max(renderSize.height(), layoutStatus.renderSize.height());
+                break;
+            case DocumentItem::Top2Bottom:
+            case DocumentItem::Bottom2Top:
+                renderSize.rwidth() = std::max(renderSize.height(), layoutStatus.renderSize.height());
+                renderSize.rheight() += layoutStatus.renderSize.height();
+                break;
+            }
 			break;
 		} else if (layoutStatus.status != Success) {
 			itemInfos.layoutStatus = layoutStatus.status;
@@ -1106,6 +1135,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 
 	_renderContext = oldContext;
 
+    renderSize.rwidth() += itemInfos.item->origin().x();
+    renderSize.rheight() += itemInfos.item->origin().y();
 	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
 
 }
@@ -1276,7 +1307,34 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 
 	QRectF rectangle = QRectF(origin, renderSize);
     QFontMetricsF fontMetric(font);
-    QRectF boundingRect = fontMetric.boundingRect(rectangle, flags,  text);
+
+    qreal lineWidth = rectangle.width();
+
+    int leading = fontMetric.leading();
+    qreal height = 0;
+
+    QStringList lines = text.split("\n");
+
+    for (QString const& line : qAsConst(lines)) {
+
+        QTextLayout textLayout((line.isEmpty() ? " " : line), font, _painter->device());
+        textLayout.setCacheEnabled(true);
+        textLayout.beginLayout();
+        while (true) {
+            QTextLine line = textLayout.createLine();
+            if (!line.isValid())
+                break;
+
+            line.setLineWidth(lineWidth);
+            height += leading;
+            line.setPosition(QPointF(0, height));
+            height += line.height();
+        }
+        textLayout.endLayout();
+
+    }
+
+    QRectF boundingRect = QRectF(origin, QSizeF(lineWidth, height));
 
 	RenderingStatus status{Success, "", renderSize};
 
@@ -1285,7 +1343,30 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 
 		QSizeF maxRenderSize(itemInfos.item->maxSize());
         QRectF rectangle = QRectF(origin, maxRenderSize);
-        boundingRect = fontMetric.boundingRect(rectangle, flags,  text);
+
+        lineWidth = rectangle.width();
+        height = 0;
+
+        for (QString const& line : qAsConst(lines)) {
+
+            QTextLayout textLayout((line.isEmpty() ? " " : line), font, _painter->device());
+            textLayout.setCacheEnabled(true);
+            textLayout.beginLayout();
+            while (true) {
+                QTextLine line = textLayout.createLine();
+                if (!line.isValid())
+                    break;
+
+                line.setLineWidth(lineWidth);
+                height += leading;
+                line.setPosition(QPointF(0, height));
+                height += line.height();
+            }
+            textLayout.endLayout();
+
+        }
+
+        boundingRect = QRectF(origin, QSizeF(lineWidth, height));
 
 		if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
 			status.status = MissingSpace;
@@ -1643,9 +1724,41 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 
 	flags |= Qt::TextWordWrap;
 
-	QRectF rectangle = QRectF(origin, renderSize);
-	QRectF boundingRect;
-	_painter->drawText(rectangle, flags, text, &boundingRect);
+    QRectF rectangle = QRectF(origin, renderSize);
+
+    QFontMetricsF fontMetric(font);
+
+    qreal lineWidth = rectangle.width();
+
+    int leading = fontMetric.leading();
+    qreal height = 0;
+
+    QStringList lines = text.split("\n");
+
+    QVector<QTextLayout::FormatRange> selections;
+
+    for (QString const& line : qAsConst(lines)) {
+
+        QTextLayout textLayout((line.isEmpty() ? " " : line), font, _painter->device());
+        textLayout.setCacheEnabled(true);
+        textLayout.beginLayout();
+        while (true) {
+            QTextLine line = textLayout.createLine();
+            if (!line.isValid())
+                break;
+
+            line.setLineWidth(lineWidth);
+            height += leading;
+            line.setPosition(QPointF(0, height));
+            height += line.height();
+
+            textLayout.draw(_painter, origin, selections, rectangle);
+        }
+        textLayout.endLayout();
+
+    }
+
+    QRectF boundingRect(origin, QSizeF(lineWidth, height));
 
 	RenderingStatus status{Success, "", boundingRect.size()};
 
