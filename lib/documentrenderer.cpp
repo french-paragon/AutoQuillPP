@@ -1286,24 +1286,24 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	font.setPointSizeF(itemInfos.item->fontSize());
 	_painter->setFont(font);
 
-	int flags = Qt::AlignLeft;
+    Qt::Alignment alignement = Qt::AlignLeft;
 
-	switch (itemInfos.item->textAlign()) {
-	case DocumentItem::TextAlign::AlignLeft:
-		flags = Qt::AlignLeft;
-		break;
-	case DocumentItem::TextAlign::AlignRight:
-		flags = Qt::AlignRight;
-		break;
-	case DocumentItem::TextAlign::AlignCenter:
-		flags = Qt::AlignHCenter;
-		break;
-	case DocumentItem::TextAlign::AlignJustify:
-		flags = Qt::AlignJustify;
-		break;
-	}
+    switch (itemInfos.item->textAlign()) {
+    case DocumentItem::TextAlign::AlignLeft:
+        alignement = Qt::AlignLeft;
+        break;
+    case DocumentItem::TextAlign::AlignRight:
+        alignement = Qt::AlignRight;
+        break;
+    case DocumentItem::TextAlign::AlignCenter:
+        alignement = Qt::AlignHCenter;
+        break;
+    case DocumentItem::TextAlign::AlignJustify:
+        alignement = Qt::AlignJustify;
+        break;
+    }
 
-	flags |= Qt::TextWordWrap;
+    int flags = alignement | Qt::TextWordWrap;
 
 	QRectF rectangle = QRectF(origin, renderSize);
     QFontMetricsF fontMetric(font);
@@ -1315,9 +1315,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 
     QStringList lines = text.split("\n");
 
+    QTextOption options;
+    options.setAlignment(alignement);
+
     for (QString const& line : qAsConst(lines)) {
 
         QTextLayout textLayout((line.isEmpty() ? " " : line), font, _painter->device());
+        textLayout.setTextOption(options);
         textLayout.setCacheEnabled(true);
         textLayout.beginLayout();
         while (true) {
@@ -1350,6 +1354,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
         for (QString const& line : qAsConst(lines)) {
 
             QTextLayout textLayout((line.isEmpty() ? " " : line), font, _painter->device());
+            textLayout.setTextOption(options);
             textLayout.setCacheEnabled(true);
             textLayout.beginLayout();
             while (true) {
@@ -1705,24 +1710,24 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 	font.setPointSizeF(itemInfos.item->fontSize());
 	_painter->setFont(font);
 
-	int flags = Qt::AlignLeft;
+    Qt::Alignment alignement = Qt::AlignLeft;
 
 	switch (itemInfos.item->textAlign()) {
 	case DocumentItem::TextAlign::AlignLeft:
-		flags = Qt::AlignLeft;
+        alignement = Qt::AlignLeft;
 		break;
 	case DocumentItem::TextAlign::AlignRight:
-		flags = Qt::AlignRight;
+        alignement = Qt::AlignRight;
 		break;
 	case DocumentItem::TextAlign::AlignCenter:
-		flags = Qt::AlignHCenter;
+        alignement = Qt::AlignHCenter;
 		break;
 	case DocumentItem::TextAlign::AlignJustify:
-		flags = Qt::AlignJustify;
+        alignement = Qt::AlignJustify;
 		break;
 	}
 
-	flags |= Qt::TextWordWrap;
+    int flags = alignement | Qt::TextWordWrap;
 
     QRectF rectangle = QRectF(origin, renderSize);
 
@@ -1735,11 +1740,16 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 
     QStringList lines = text.split("\n");
 
+    QTextOption options;
+    options.setAlignment(alignement);
+
+
     QVector<QTextLayout::FormatRange> selections;
 
     for (QString const& line : qAsConst(lines)) {
 
         QTextLayout textLayout((line.isEmpty() ? " " : line), font, _painter->device());
+        textLayout.setTextOption(options);
         textLayout.setCacheEnabled(true);
         textLayout.beginLayout();
         while (true) {
