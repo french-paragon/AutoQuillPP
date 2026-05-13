@@ -419,7 +419,28 @@ void DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& p
 	painter.translate(pos);
 
 	for (int i = 0; i < item->subitems().size(); i++) {
+        qreal delta = 0;
+        bool isHorizontal = false;
+        if (type == AutoQuill::DocumentItem::List) {
+            if (item->direction() == AutoQuill::DocumentItem::Left2Right or item->direction() == AutoQuill::DocumentItem::Left2Right) {
+                isHorizontal = true;
+            }
+
+            if (isHorizontal) {
+                delta = item->subitems()[i]->initialWidth();
+            } else {
+                delta = item->subitems()[i]->initialHeight();
+            }
+
+        }
+
 		paintItem(item->subitems()[i], painter);
+
+        if (isHorizontal) {
+            painter.translate(QPointF(delta*s, 0));
+        } else {
+            painter.translate(QPointF(0, delta*s));
+        }
 	}
 
 	painter.setWorldTransform(initial); //reset the transform;
