@@ -330,7 +330,66 @@ void DocumentPreviewWidget::paintPage(QPointF offset, int pageId, QPainter& pain
 
 	painter.setWorldTransform(initial); //reset the transform;
 }
-void DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& painter) {
+
+QSizeF DocumentPreviewWidget::computeItemSize(AutoQuill::DocumentItem* item) {
+
+    QSizeF size(item->initialWidth(), item->initialHeight());
+
+    auto type = item->getType();
+    QPointF currentOffset(0,0);
+
+    qreal delta = 0;
+    qreal accumulated = 0;
+    bool isHorizontal = false;
+
+    for (int i = 0; i < item->subitems().size(); i++) {
+
+        QPointF subPos = item->subitems()[i]->origin();
+        QSizeF subSize = computeItemSize(item->subitems()[i]);
+        subSize.rwidth() += subPos.x();
+        subSize.rheight() += subPos.y();
+
+
+        if (type == AutoQuill::DocumentItem::List) {
+            if (item->direction() == AutoQuill::DocumentItem::Left2Right or item->direction() == AutoQuill::DocumentItem::Left2Right) {
+                isHorizontal = true;
+            }
+
+            if (isHorizontal) {
+                delta = subSize.width();
+            } else {
+                delta = subSize.height();
+            }
+
+            accumulated += delta;
+
+            if (isHorizontal) {
+                size.rwidth() = std::max(accumulated, size.width());
+                size.rheight() = std::max(subSize.height(), size.height());
+            } else {
+                size.rheight() = std::max(accumulated, size.height());
+                size.rwidth() = std::max(subSize.width(), size.width());
+            }
+
+        } else {
+            size.rheight() = std::max(subSize.height(), size.height());
+            size.rwidth() = std::max(subSize.width(), size.width());
+        }
+    }
+
+    if (size.width() > item->maxWidth()) {
+        size.rwidth() = item->maxWidth();
+    }
+
+    if (size.height() > item->maxHeight()) {
+        size.rheight() = item->maxHeight();
+    }
+
+    return size;
+
+}
+
+QSizeF DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& painter) {
 
 	constexpr int iconSize = 30;
 
@@ -388,6 +447,8 @@ void DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& p
 		}
 	}
 
+    QSizeF itemSize = computeItemSize(item);
+
 	switch(type) {
 	case AutoQuill::DocumentItem::Frame:
 	case AutoQuill::DocumentItem::Image:
@@ -396,7 +457,7 @@ void DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& p
 	case AutoQuill::DocumentItem::Plugin:
 	case AutoQuill::DocumentItem::Text: {
 
-		QRectF rect(pos, s*QSizeF(item->initialWidth(), item->initialHeight()));
+        QRectF rect(pos, s*itemSize);
 
 		if (type == AutoQuill::DocumentItem::Frame and item->fillColor().isValid()) {
 			painter.fillRect(rect, item->fillColor());
@@ -412,37 +473,44 @@ void DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter& p
 		painter.setPen(borderPen);
 		painter.drawPixmap(pos,icon);
 		painter.drawText(pos + QPointF(iconSize,iconSize), item->objectName());
-	}
+    }
 
 
-	QTransform initial = painter.worldTransform();
-	painter.translate(pos);
+    QTransform initial = painter.worldTransform();
+    painter.translate(pos);
 
-	for (int i = 0; i < item->subitems().size(); i++) {
+    for (int i = 0; i < item->subitems().size(); i++) {
         qreal delta = 0;
+        qreal accumulated = 0;
         bool isHorizontal = false;
+
+        QPointF subPos = item->subitems()[i]->origin();
+        QSizeF subSize = paintItem(item->subitems()[i], painter);
+
         if (type == AutoQuill::DocumentItem::List) {
             if (item->direction() == AutoQuill::DocumentItem::Left2Right or item->direction() == AutoQuill::DocumentItem::Left2Right) {
                 isHorizontal = true;
             }
 
             if (isHorizontal) {
-                delta = item->subitems()[i]->initialWidth();
+                delta = subPos.x()+subSize.width();
             } else {
-                delta = item->subitems()[i]->initialHeight();
+                delta = subPos.y()+subSize.height();
+            }
+
+            accumulated += delta;
+
+            if (isHorizontal) {
+                painter.translate(QPointF(delta*s, 0));
+            } else {
+                painter.translate(QPointF(0, delta*s));
             }
 
         }
+    }
 
-		paintItem(item->subitems()[i], painter);
+    painter.setWorldTransform(initial); //reset the transform;
 
-        if (isHorizontal) {
-            painter.translate(QPointF(delta*s, 0));
-        } else {
-            painter.translate(QPointF(0, delta*s));
-        }
-	}
-
-	painter.setWorldTransform(initial); //reset the transform;
+    return itemSize;
 
 }

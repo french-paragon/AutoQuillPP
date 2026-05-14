@@ -127,8 +127,17 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 
+
+    QSizeF computeItemSize(AutoQuill::DocumentItem* item);
+
 	void paintPage(QPointF offset, int pageId, QPainter& painter);
-	void paintItem(AutoQuill::DocumentItem* item, QPainter& painter);
+    /*!
+     * \brief paintItem paint an item on the preview widget
+     * \param item the item to paint
+     * \param painter the painter to use
+     * \return the offset the item took on the widget (usefull e.g. when painting a list to apply dynamic offset).
+     */
+    QSizeF paintItem(AutoQuill::DocumentItem* item, QPainter& painter);
 
 	static const qreal scaleBase;
 	static const qreal scaleLevelMax;
