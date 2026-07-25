@@ -46,6 +46,9 @@ add_subdirectory(lib)
 #configure app
 add_subdirectory(app)
 
+#configure tests
+add_subdirectory(tests)
+
 #installing
 
 install(EXPORT ${AUTOQUILL_SDK_EXPORTNAME}
