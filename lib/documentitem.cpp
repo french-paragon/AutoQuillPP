@@ -255,10 +255,6 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
     case Condition:
         if (pName == "posX" or
             pName == "posY" or
-            pName == "initialWidth" or
-            pName == "initialHeight" or
-            pName == "maxWidth" or
-            pName == "maxHeight" or
             pName == "borderWidth" or
             pName == "borderColor" or
             pName == "fillColor" or
