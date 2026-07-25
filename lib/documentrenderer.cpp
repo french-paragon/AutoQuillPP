@@ -397,17 +397,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(ItemRenderIn
 	if (itemInfos.item == nullptr) {
 		return RenderingStatus{MissingModel,
 					QObject::tr("Invalid item requested!")};
-	}
+    }
 
-	if (!itemInfos.itemValue.hasMap()) {
-		return RenderingStatus{MissingData,
-					QObject::tr("Cannot read context map for condition : %1").arg(itemInfos.item->objectName())};
-	}
-
-	if (itemInfos.item->subitems().size() != 2) {
+    if (itemInfos.item->subitems().size() != 1 and itemInfos.item->subitems().size() != 2) {
 		return RenderingStatus{MissingModel,
-					QObject::tr("Condition : %1, does not have two subitems, conditions should have exactly two subitems").arg(itemInfos.item->objectName())};
+                    QObject::tr("Condition : %1, does not have one or two subitems, conditions should have exactly one or two subitems").arg(itemInfos.item->objectName())};
 	}
+
+    if (!itemInfos.itemValue.hasMap()) { //no data
+        if (itemInfos.item->subitems().size() == 2) { //in the case an alternative item is provided, one need some data for the subitem
+            return RenderingStatus{MissingData,
+                                   QObject::tr("Cannot read context map for condition : %1").arg(itemInfos.item->objectName())};
+        } else { //in the case of a single item, no data just mean the condition should be evaluated to false
+            RenderingStatus ret{Success};
+            ret.renderSize = QSizeF(0,0); // if no target item and no error up to that point layout nothing!
+            return ret;
+        }
+    }
 
 	QString conditionKey = itemInfos.item->data();
 
@@ -421,11 +427,21 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(ItemRenderIn
 
 	bool condition = conditionData.toBool();
 
-	DocumentItem* target_item = itemInfos.item->subitems()[1];
+    DocumentItem* target_item = nullptr;
+
+    if (itemInfos.item->subitems().size() == 2) { //in case of two subitems, the second is the fallback in case the condition is false
+        target_item = itemInfos.item->subitems()[1];
+    }
 
 	if (condition) {
 		target_item = itemInfos.item->subitems()[0];
 	}
+
+    if (target_item == nullptr) {
+        RenderingStatus ret{Success};
+        ret.renderSize = QSizeF(0,0); // if no target item and no error up to that point layout nothing!
+        return ret;
+    }
 
 
 	DocumentValue target_val = itemInfos.itemValue.getValue(target_item->dataKey());
@@ -462,7 +478,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(ItemRenderIn
 				no_render_needed = true;
 			}
 		}
-	}
+    }
 
 	if (no_render_needed) {
 		delete subItemInfos;
@@ -602,8 +618,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
                 break;
             }
 			break;
-		} else if (layoutStatus.status != Success) {
-			itemInfos.layoutStatus = layoutStatus.status;
+        } else if (layoutStatus.status != Success) {
+            itemInfos.layoutStatus = layoutStatus.status;
+            message = layoutStatus.message +
+                      QString("\n Table: %1 other error while rendering the object!").arg(itemInfos.item->objectName());
 			break;
 		}
 
