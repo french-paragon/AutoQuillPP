@@ -35,10 +35,32 @@ public :
 		OtherError
 	};
 
-	struct RenderingStatus {
+    struct RenderingStatus {
+        RenderingStatus(Status p_status = OtherError,
+                        QString p_message = "",
+                        QSizeF p_renderSize = QSize(0,0),
+                        bool p_anyItemProgressedRender = false) :
+            status(p_status),
+            message(p_message),
+            renderSize(p_renderSize),
+            anyItemProgressedRender(p_anyItemProgressedRender)
+        {
+
+        }
+        RenderingStatus(Status p_status,
+                        QString p_message,
+                        bool p_anyItemProgressedRender) :
+            status(p_status),
+            message(p_message),
+            renderSize(QSize(0,0)),
+            anyItemProgressedRender(p_anyItemProgressedRender)
+        {
+
+        }
 		Status status;
 		QString message;
 		QSizeF renderSize;
+        bool anyItemProgressedRender;
     };
 
 	struct LayoutResults {

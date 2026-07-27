@@ -559,8 +559,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 
 	if (startsId >= nCopies) {
 		itemInfos.layoutStatus = Success;
-		return RenderingStatus{Success, "", renderSize};
+        return RenderingStatus{Success, "", renderSize, true};
 	}
+
+    bool madeProgress = false;
 
 	for (int i = startsId; i < nCopies; i++) {
 
@@ -588,6 +590,14 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 		RenderingStatus layoutStatus = layoutItem(*subItemInfos, previousInfos, &itemInfos.subitemsRenderInfos);
 
 		itemInfos.continuationIndex = i;
+
+        if (i != startsId) {
+            madeProgress = true;
+        } else {
+            if (layoutStatus.anyItemProgressedRender) {
+                madeProgress = true;
+            }
+        }
 
 		if (layoutStatus.status == MissingSpace) {
 			if (i == startsId) {
@@ -762,17 +772,17 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 
 	end_layout:
 
-	_renderContext = oldContext;
+    _renderContext = oldContext;
 
     renderSize.rwidth() += itemInfos.item->origin().x();
     renderSize.rheight() += itemInfos.item->origin().y();
-	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
+    return RenderingStatus{itemInfos.layoutStatus, message, renderSize, madeProgress};
 
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender, QVector<ItemRenderInfos*>* targetItemPool) {
 
 	if (itemInfos.item == nullptr) {
-		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
+        return RenderingStatus(MissingModel, QObject::tr("Invalid item requested!"), false);
 	}
 
     _renderContext = RenderContext{itemInfos.item->direction(), QPointF(0,0), itemInfos.item->initialSize(), itemInfos.item->initialSize()}; //init the context to the page size
@@ -783,6 +793,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 	int nItems = itemInfos.item->subitems().size();
 
 	bool hasMoreToRender = false;
+    bool anyItemProgressedRender = false;
 	bool isFirst = true;
 
 	ItemRenderInfos* currentPageInfos = &itemInfos;
@@ -791,6 +802,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 	do {
 
 		hasMoreToRender = false;
+        anyItemProgressedRender = false;
 
 		for (int i = 0; i < nItems; i++) {
 
@@ -838,10 +850,14 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 
 			RenderingStatus itemStatus = layoutItem(*subItemInfos, previousItemRenderInfos);
 
-			if (itemStatus.status == NotAllItemsRendered) {
-				if (subItemInfos->item->overflowBehavior() == DocumentItem::OverflowOnNewPage) {
-					hasMoreToRender = true;
-				} else {
+            if (itemStatus.status == NotAllItemsRendered) {
+                if (subItemInfos->item->overflowBehavior() == DocumentItem::OverflowOnNewPage) {
+                    anyItemProgressedRender |= itemStatus.anyItemProgressedRender;
+                    hasMoreToRender = true;
+                } else if (subItemInfos->item->overflowBehavior() == DocumentItem::CopyOnNewPages) {
+                    anyItemProgressedRender |= itemStatus.anyItemProgressedRender;
+                    hasMoreToRender = true;
+                } else {
 					status.status = MissingSpace;
 					if (!status.message.isEmpty()) {
 						status.message += "\n";
@@ -854,7 +870,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 					status.message += "\n";
 				}
 				status.message += itemStatus.message;
-			}
+            } else {
+                anyItemProgressedRender = true; //an item sucessfully rendered
+            }
 		}
 
 		_pagesToWrite++;
@@ -865,6 +883,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 		}
 
 		if (hasMoreToRender) {
+            if (!anyItemProgressedRender) {
+                return RenderingStatus(MissingSpace,
+                                       QObject::tr("Render loop got stuck without being able to progress on page: %1!").arg(currentPageInfos->item->objectName()),
+                                       false);
+            }
 			previousPageInfos = currentPageInfos;
 			currentPageInfos = new ItemRenderInfos();
 			currentPageInfos->item = itemInfos.item;
@@ -942,6 +965,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 		return RenderingStatus{Success, "", renderSize};
 	}
 
+    bool anyItemProgressedRender = false;
+
 	for (int i = startsId; i < nItems; i++) {
 
 		ItemRenderInfos* subItemInfos = new ItemRenderInfos();
@@ -974,6 +999,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 		RenderingStatus layoutStatus = layoutItem(*subItemInfos, previousInfos);
 
 		itemInfos.continuationIndex = i;
+        if (i != startsId) {
+            anyItemProgressedRender = true;
+        } else if (layoutStatus.anyItemProgressedRender) {
+            anyItemProgressedRender = true;
+        }
 
 		if (layoutStatus.status == MissingSpace) {
 			if (i == startsId) {
@@ -1155,7 +1185,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 
     renderSize.rwidth() += itemInfos.item->origin().x();
     renderSize.rheight() += itemInfos.item->origin().y();
-	return RenderingStatus{itemInfos.layoutStatus, message, renderSize};
+    return RenderingStatus{itemInfos.layoutStatus, message, renderSize, anyItemProgressedRender};
 
 }
 
@@ -1233,6 +1263,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 		itemInfos.subitemsRenderInfos.push_back(subItemInfos);
 
 		RenderingStatus itemStatus = layoutItem(*subItemInfos, previousItemRenderInfos);
+
+        if (itemStatus.anyItemProgressedRender) {
+            status.anyItemProgressedRender = true;
+        }
 
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
@@ -1358,7 +1392,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 
     QRectF boundingRect = QRectF(origin, QSizeF(lineWidth, height));
 
-	RenderingStatus status{Success, "", renderSize};
+    RenderingStatus status{Success, "", renderSize};
 
 	if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
 		//in can the initial size is not enough
@@ -1454,7 +1488,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutImage(ItemRenderInfos&
 
 	QSizeF renderSize(itemInfos.item->initialSize());
 
-	RenderingStatus status{Success, "", renderSize};
+    RenderingStatus status{Success, "", renderSize};
 
 	return status;
 }
@@ -1511,7 +1545,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos
 
 	QPointF delta = requiredRegion.bottomRight() - origin;
 
-	return{Success, "", QSizeF(delta.x(), delta.y())};
+    return{Success, "", QSizeF(delta.x(), delta.y())};
 }
 
 
