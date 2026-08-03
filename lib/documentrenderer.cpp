@@ -1508,24 +1508,35 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
+    QPointF origin = _renderContext.origin + itemInfos.item->origin();
+
 	QSizeF itemInitialSize = itemInfos.item->initialSize();
+
+    QRectF requiredRegion = plugin->getMinimalSpace(QRectF(origin, itemInitialSize), itemInfos.itemValue);
+
+    itemInitialSize.rheight() = std::max(itemInitialSize.height(), requiredRegion.height());
+    itemInitialSize.rwidth() = std::max(itemInitialSize.width(), requiredRegion.width());
 
 	if (itemInitialSize.width() > _renderContext.region.width() or
 		itemInitialSize.height() > _renderContext.region.height()) {
 		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Plugin: %1").arg(itemInfos.item->objectName())};
 	}
 
-	if (itemInitialSize.width() < itemInfos.maxSize.width()) {
+    if (itemInitialSize.width() > itemInfos.maxSize.width()) {
+        if (requiredRegion.width() > itemInfos.maxSize.width()) {
+            return RenderingStatus{OtherError, QObject::tr("Mismatch between layout and requested size for Plugin: %1").arg(itemInfos.item->objectName())};
+        }
 		itemInitialSize.rwidth() = itemInfos.maxSize.width();
 	}
 
-	if (itemInitialSize.height() < itemInfos.maxSize.height()) {
+    if (itemInitialSize.height() > itemInfos.maxSize.height()) {
+        if (requiredRegion.height() > itemInfos.maxSize.height()) {
+            return RenderingStatus{OtherError, QObject::tr("Mismatch between layout and requested size for Plugin: %1").arg(itemInfos.item->objectName())};
+        }
 		itemInitialSize.rheight() = itemInfos.maxSize.height();
 	}
 
-	itemInitialSize = itemInitialSize.boundedTo(_renderContext.region);
-
-	QPointF origin = _renderContext.origin + itemInfos.item->origin();
+    itemInitialSize = itemInitialSize.boundedTo(_renderContext.region);
 
 	if (_renderContext.direction == DocumentItem::Right2Left) {
 		origin.rx() = _renderContext.origin.x() - itemInfos.item->origin().x();
@@ -1533,14 +1544,12 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPlugin(ItemRenderInfos
 
 	if (_renderContext.direction == DocumentItem::Bottom2Top) {
 		origin.ry() = _renderContext.origin.y() - itemInfos.item->origin().y();
-	}
-
-	QRectF requiredRegion = plugin->getMinimalSpace(QRectF(origin, itemInitialSize), itemInfos.itemValue);
+    }
 
 	//TODO: more carefull size checking here
 
 	itemInfos.currentOrigin = requiredRegion.topLeft();
-	itemInfos.currentSize = requiredRegion.size();
+    itemInfos.currentSize = itemInitialSize;
 	itemInfos.layoutStatus = Success;
 
 	QPointF delta = requiredRegion.bottomRight() - origin;
