@@ -57,8 +57,9 @@ public :
         {
 
         }
-		Status status;
-		QString message;
+        Status status;
+        QString message;
+        QStringList warnings;
 		QSizeF renderSize;
         bool anyItemProgressedRender;
     };
@@ -138,6 +139,8 @@ protected :
         QPointF origin;
         QSizeF region;
         QSizeF maxRegion;
+        bool willMovePageIfOverflow; //indicate to the layout/render engine that the item will be pushed to a new page in case there is not engough space.
+        //this is usefull because the layout engine knows it can return a missing space error without making the render fail.
 
         inline RenderContext constrainedTo(DocumentItem::Direction newDir, QPointF const& subItemPos, QSizeF const& initialSize, QSizeF const& maxSize) {
             QSizeF newMaxSize = QSizeF(maxRegion.width()-subItemPos.x(),

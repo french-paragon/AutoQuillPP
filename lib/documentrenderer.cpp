@@ -337,12 +337,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<ItemR
 
 		RenderingStatus itemStatus = layoutItem(*topLevel.back(), nullptr, &topLevel);
 
+        status.warnings << itemStatus.warnings;
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
 			if (!status.message.isEmpty()) {
 				status.message += "\n";
 			}
-			status.message += itemStatus.message;
+            status.message += itemStatus.message;
 		}
 	}
 
@@ -563,6 +564,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 	}
 
     bool madeProgress = false;
+    QStringList warnings_messages;
 
 	for (int i = startsId; i < nCopies; i++) {
 
@@ -587,7 +589,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 			}
         }
 
+        if (itemInfos.item->overflowBehavior() == DocumentItem::OverflowOnNewPage) {
+            _renderContext.willMovePageIfOverflow = true;
+        }
 		RenderingStatus layoutStatus = layoutItem(*subItemInfos, previousInfos, &itemInfos.subitemsRenderInfos);
+        warnings_messages << layoutStatus.warnings;
 
 		itemInfos.continuationIndex = i;
 
@@ -776,7 +782,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& 
 
     renderSize.rwidth() += itemInfos.item->origin().x();
     renderSize.rheight() += itemInfos.item->origin().y();
-    return RenderingStatus{itemInfos.layoutStatus, message, renderSize, madeProgress};
+    RenderingStatus ret{itemInfos.layoutStatus, message, renderSize, madeProgress};
+    ret.warnings = warnings_messages;
+    return ret;
 
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender, QVector<ItemRenderInfos*>* targetItemPool) {
@@ -785,7 +793,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
         return RenderingStatus(MissingModel, QObject::tr("Invalid item requested!"), false);
 	}
 
-    _renderContext = RenderContext{itemInfos.item->direction(), QPointF(0,0), itemInfos.item->initialSize(), itemInfos.item->initialSize()}; //init the context to the page size
+    _renderContext = RenderContext{.direction=itemInfos.item->direction(),
+                                   .origin=QPointF(0,0),
+                                   .region=itemInfos.item->initialSize(),
+                                   .maxRegion=itemInfos.item->initialSize(),
+                                   .willMovePageIfOverflow = false}; //init the context to the page size
     itemInfos.currentSize = itemInfos.item->initialSize();
 
 	RenderingStatus status{Success, ""};
@@ -849,6 +861,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
 			currentPageInfos->subitemsRenderInfos.push_back(subItemInfos);
 
 			RenderingStatus itemStatus = layoutItem(*subItemInfos, previousItemRenderInfos);
+            status.warnings << itemStatus.warnings;
 
             if (itemStatus.status == NotAllItemsRendered) {
                 if (subItemInfos->item->overflowBehavior() == DocumentItem::OverflowOnNewPage) {
@@ -966,6 +979,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 	}
 
     bool anyItemProgressedRender = false;
+    QStringList warnings_messages;
 
 	for (int i = startsId; i < nItems; i++) {
 
@@ -996,7 +1010,12 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
             }
         }
 
+
+        if (itemInfos.item->overflowBehavior() == DocumentItem::OverflowOnNewPage) {
+            _renderContext.willMovePageIfOverflow = true;
+        }
 		RenderingStatus layoutStatus = layoutItem(*subItemInfos, previousInfos);
+        warnings_messages << layoutStatus.warnings;
 
 		itemInfos.continuationIndex = i;
         if (i != startsId) {
@@ -1185,7 +1204,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutList(ItemRenderInfos& 
 
     renderSize.rwidth() += itemInfos.item->origin().x();
     renderSize.rheight() += itemInfos.item->origin().y();
-    return RenderingStatus{itemInfos.layoutStatus, message, renderSize, anyItemProgressedRender};
+    RenderingStatus ret{itemInfos.layoutStatus, message, renderSize, anyItemProgressedRender};
+    ret.warnings = warnings_messages;
+    return ret;
 
 }
 
@@ -1219,10 +1240,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 	itemInfos.currentOrigin = origin;
 
 	QSizeF renderSize(itemInfos.item->initialSize());
-	_renderContext = RenderContext{itemInfos.item->direction(),
-			origin,
-            itemInfos.item->initialSize(),
-            itemInfos.item->maxSize()};
+    _renderContext = RenderContext{.direction=itemInfos.item->direction(),
+            .origin=origin,
+            .region=itemInfos.item->initialSize(),
+            .maxRegion=itemInfos.item->maxSize(),
+                                   .willMovePageIfOverflow = false};
 
 	RenderingStatus status{Success, ""};
 
@@ -1263,6 +1285,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 		itemInfos.subitemsRenderInfos.push_back(subItemInfos);
 
 		RenderingStatus itemStatus = layoutItem(*subItemInfos, previousItemRenderInfos);
+        status.warnings << itemStatus.warnings;
 
         if (itemStatus.anyItemProgressedRender) {
             status.anyItemProgressedRender = true;
@@ -1307,7 +1330,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 			itemInitialSize.height() > _renderContext.region.height()) {
 
 		itemInfos.layoutStatus = MissingSpace;
-		return RenderingStatus{MissingSpace, QObject::tr("Not enough space to render Text: %1").arg(itemInfos.item->objectName())};
+        return RenderingStatus{MissingSpace, QObject::tr("Text initial size does not fit in render context region: %1").arg(itemInfos.item->objectName())};
 	}
 
 	QVariant variant = itemInfos.itemValue.getValue();
@@ -1426,8 +1449,12 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
         boundingRect = QRectF(origin, QSizeF(lineWidth, height));
 
 		if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
-			status.status = MissingSpace;
-			status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
+            if (_renderContext.willMovePageIfOverflow) { //launch an overflow error if we need to push the render of the block to the next page
+                status.status = MissingSpace;
+                status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
+            } else { //else record only a warning, we want to see the document for debugging purposes
+                status.warnings << QObject::tr("Text from text block %1 overflow, render anyway").arg(itemInfos.item->objectName());
+            }
 		} else {
 			status.renderSize = boundingRect.size();
 		}
@@ -1619,6 +1646,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderLoop(ItemRenderInfos& 
 		}
 		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
+        status.warnings << itemStatus.warnings;
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
 			if (!status.message.isEmpty()) {
@@ -1654,6 +1682,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(ItemRenderInfos& 
 		}
 		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
+        status.warnings << itemStatus.warnings;
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
 			if (!status.message.isEmpty()) {
@@ -1680,6 +1709,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderList(ItemRenderInfos& 
 		}
 		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
+        status.warnings << itemStatus.warnings;
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
 			if (!status.message.isEmpty()) {
@@ -1728,6 +1758,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(ItemRenderInfos&
 		}
 		RenderingStatus itemStatus = renderItem(*subitemInfos);
 
+        status.warnings << itemStatus.warnings;
 		if (itemStatus.status != Success) {
 			status.status = itemStatus.status;
 			if (!status.message.isEmpty()) {
@@ -1833,7 +1864,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 
 	RenderingStatus status{Success, "", boundingRect.size()};
 
-	if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
+    if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
+        //should not occur if layout was done properly
 		status.status = MissingSpace;
 		status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
 	}
