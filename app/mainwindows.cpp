@@ -28,8 +28,10 @@
 #include <QPushButton>
 #include <QFontComboBox>
 #include <QColorDialog>
+#include <QClipboard>
+#include <QMimeData>
+#include <QGuiApplication>
 
-#include "../lib/documentitem.h"
 #include "../lib/documenttemplate.h"
 
 #include "documentpreviewwidget.h"
@@ -71,8 +73,7 @@ MainWindows::MainWindows(QWidget *parent) :
 	_projectTreeDockWidget->setWidget(projectTreeWidget);
 
 	_projectTreeViewWidget = new QTreeView(_projectTreeDockWidget);
-	_projectTreeViewWidget->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
-	_projectTreeViewWidget->header()->setVisible(false);
+    _projectTreeViewWidget->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
 
 	_projectTreeViewWidget->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
 	_projectTreeViewWidget->setDragEnabled(true);
@@ -144,43 +145,55 @@ MainWindows::InsertPos MainWindows::currentInsertPos() {
 
 	QModelIndex idx = _projectTreeViewWidget->currentIndex();
 
-	if (idx == QModelIndex()) {
-		return {QModelIndex(), -1};
-	}
+    return insertPosFromIndex(idx);
 
-	AutoQuill::DocumentItem* item = qvariant_cast<AutoQuill::DocumentItem*>(idx.data(AutoQuill::DocumentTemplateModel::ItemRole));
+}
+MainWindows::InsertPos MainWindows::insertPosFromIndex(QModelIndex const& idx) {
 
-	if (item == nullptr) {
-		return {QModelIndex(), -1};
-	}
+    if (idx == QModelIndex()) {
+        return {QModelIndex(), -1};
+    }
 
-	AutoQuill::DocumentItem::Type type = item->getType();
+    AutoQuill::DocumentItem* item = qvariant_cast<AutoQuill::DocumentItem*>(idx.data(AutoQuill::DocumentTemplateModel::ItemRole));
 
-	if (AutoQuill::DocumentItem::typeAcceptChildrens(type)) {
-		return {idx, -1};
-	}
+    if (item == nullptr) {
+        return {QModelIndex(), -1};
+    }
 
-	QModelIndex idxp = idx.parent();
+    AutoQuill::DocumentItem::Type type = item->getType();
 
-	return {idxp, idx.row() +1};
+    if (AutoQuill::DocumentItem::typeAcceptChildrens(type)) {
+        return {idx, idx.model()->rowCount(idx)};
+    }
 
+    QModelIndex idxp = idx.parent();
+
+    return {idxp, idx.row() +1};
+
+}
+QList<AutoQuill::DocumentItem::Type> MainWindows::creableTypesFromIndex(QModelIndex const& parent) const {
+    QList<AutoQuill::DocumentItem::Type> ret;
+
+    AutoQuill::DocumentItem* parentItem = nullptr;
+
+    if (parent == QModelIndex()) {
+        return AutoQuill::DocumentItem::supportedRootTypes();
+    } else {
+        parentItem = qvariant_cast<AutoQuill::DocumentItem*>(parent.data(AutoQuill::DocumentTemplateModel::ItemRole));
+
+        if (parentItem != nullptr) {
+            return parentItem->supportedSubTypes();
+        }
+    }
+
+    return ret;
 }
 
 void MainWindows::refreshNewItemMenu() {
 
 	InsertPos insertPos = currentInsertPos();
 
-	QList<AutoQuill::DocumentItem::Type> creableTypes;
-
-	if (insertPos.parent == QModelIndex()) {
-		creableTypes = AutoQuill::DocumentItem::supportedRootTypes();
-	} else {
-		AutoQuill::DocumentItem* item = qvariant_cast<AutoQuill::DocumentItem*>(insertPos.parent.data(AutoQuill::DocumentTemplateModel::ItemRole));
-
-		if (item != nullptr) {
-			creableTypes = item->supportedSubTypes();
-		}
-	}
+    QList<AutoQuill::DocumentItem::Type> creableTypes = creableTypesFromIndex(insertPos.parent);
 
 	if (_newItemButton->menu() == nullptr) {
 		QMenu* menu = new QMenu(_newItemButton);
@@ -228,18 +241,7 @@ void MainWindows::addDocumentItem(int t, bool topLevel) {
 
 	InsertPos insertPos = (topLevel) ? InsertPos{QModelIndex(), -1} : currentInsertPos();
 
-	AutoQuill::DocumentItem* parentItem = nullptr;
-	QList<AutoQuill::DocumentItem::Type> creableTypes;
-
-	if (insertPos.parent == QModelIndex()) {
-		creableTypes = AutoQuill::DocumentItem::supportedRootTypes();
-	} else {
-		 parentItem = qvariant_cast<AutoQuill::DocumentItem*>(insertPos.parent.data(AutoQuill::DocumentTemplateModel::ItemRole));
-
-		if (parentItem != nullptr) {
-			creableTypes = parentItem->supportedSubTypes();
-		}
-	}
+    QList<AutoQuill::DocumentItem::Type> creableTypes = creableTypesFromIndex(insertPos.parent);
 
 	if (!creableTypes.contains(type)) {
 		return;
@@ -618,7 +620,110 @@ void MainWindows::projectViewContextMenu(QPoint const& pos) {
 		return;
 	}
 
-	QMenu menu;
+    QMenu menu;
+
+    QAction* copy = menu.addAction(tr("Copy"));
+
+    connect(copy, &QAction::triggered, this, [this, idx] () {
+
+        QClipboard* clipboard = QGuiApplication::clipboard();
+
+        if (clipboard == nullptr) {
+            return;
+        }
+
+        AutoQuill::DocumentTemplateModel* model =
+            qobject_cast<AutoQuill::DocumentTemplateModel*>(_projectTreeViewWidget->model());
+        if (model != nullptr) {
+            QVariant data_var = model->data(idx, AutoQuill::DocumentTemplateModel::ItemDataRole);
+
+            if (!data_var.isValid() or !data_var.canConvert<QByteArray>()) {
+                return;
+            }
+
+            QByteArray data = data_var.toByteArray();
+
+            QMimeData* clipboard_data = new QMimeData();
+            clipboard_data->setData("application/autoquilldocitem", data);
+
+            clipboard->setMimeData(clipboard_data);
+
+        }
+    });
+
+    QClipboard* clipboard = QGuiApplication::clipboard();
+
+    if (clipboard != nullptr) {
+        const QMimeData * mimeData = clipboard->mimeData();
+        if (mimeData != nullptr) {
+            if (mimeData->hasFormat("application/autoquilldocitem")) {
+
+                QAction* paste = menu.addAction(tr("Paste"));
+
+                connect(paste, &QAction::triggered, this, [this, idx] () {
+
+                    QClipboard* clipboard = QGuiApplication::clipboard();
+
+                    if (clipboard == nullptr) {
+                        return;
+                    }
+
+                    const QMimeData * mimeData = clipboard->mimeData();
+
+                    if (mimeData == nullptr) {
+                        return;
+                    }
+
+                    QByteArray data = mimeData->data("application/autoquilldocitem");
+
+                    if (data.isEmpty()) {
+                        return;
+                    }
+
+                    QJsonParseError errors;
+                    QJsonDocument doc = QJsonDocument::fromJson(data, &errors);
+
+                    if (errors.error != QJsonParseError::NoError){
+                        return;
+                    }
+
+                    if (!doc.isObject()) {
+                        return;
+                    }
+
+                    QJsonObject obj = doc.object();
+
+                    QJsonValue tVal = obj.value("type");
+
+                    if (tVal.isNull()) {
+                        return;
+                    }
+
+                    AutoQuill::DocumentItem::Type type = AutoQuill::DocumentItem::stringToType(tVal.toString());
+
+                    if (type == AutoQuill::DocumentItem::Type::Invalid) {
+                        return;
+                    }
+
+                    auto insertPos = insertPosFromIndex(idx);
+
+                    QList<AutoQuill::DocumentItem::Type> creableTypes = creableTypesFromIndex(insertPos.parent);
+
+                    if (!creableTypes.contains(type)) {
+                        return;
+                    }
+
+
+                    AutoQuill::DocumentItem* docItem = AutoQuill::DocumentItem::buildFromJson(obj);
+
+                    _documentTemplateModel->insertItem(insertPos.parent, insertPos.row, docItem);
+
+
+                });
+
+            }
+        }
+    }
 
 	QAction* remove = menu.addAction(tr("Remove"));
 

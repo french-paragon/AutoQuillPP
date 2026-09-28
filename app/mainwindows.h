@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QModelIndex>
 
+#include "../lib/documentitem.h"
+
 namespace AutoQuill {
 	class DocumentTemplate;
 	class DocumentTemplateModel;
@@ -33,7 +35,9 @@ protected:
 		int row;
 	};
 
-	InsertPos currentInsertPos();
+    InsertPos currentInsertPos();
+    InsertPos insertPosFromIndex(QModelIndex const& idx);
+    QList<AutoQuill::DocumentItem::Type> creableTypesFromIndex(QModelIndex const& parent) const;
 
 	void refreshNewItemMenu();
 	void addDocumentItem(int type, bool topLevel = false);
