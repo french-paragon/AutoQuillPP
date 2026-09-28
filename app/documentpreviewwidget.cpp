@@ -325,6 +325,9 @@ void DocumentPreviewWidget::paintPage(QPointF offset, int pageId, QPainter& pain
 	painter.translate(widgetRect.topLeft());
 
 	for (int i = 0; i < item->subitems().size(); i++) {
+        if (!item->subitems()[i]->shouldPaintInPreview()) {
+            continue;
+        }
 		paintItem(item->subitems()[i], painter);
 	}
 
@@ -483,6 +486,10 @@ QSizeF DocumentPreviewWidget::paintItem(AutoQuill::DocumentItem* item, QPainter&
         qreal delta = 0;
         qreal accumulated = 0;
         bool isHorizontal = false;
+
+        if (!item->subitems()[i]->shouldPaintInPreview()) {
+            continue;
+        }
 
         QPointF subPos = item->subitems()[i]->origin();
         QSizeF subSize = paintItem(item->subitems()[i], painter);

@@ -16,7 +16,8 @@ namespace AutoQuill {
 DocumentItem::DocumentItem(Type type, QObject *parent) :
     QObject(parent),
 	_type(type),
-	_direction(Top2Bottom)
+    _direction(Top2Bottom),
+    _showInPreview(true)
 {
 	if (_type == Page) {
 
@@ -108,7 +109,7 @@ QList<DocumentItem::Type> DocumentItem::supportedRootTypes() {
 	return {Loop, Condition, Page}; //at the root level we can have a page, some conditional pages or a loop of pages
 }
 
-int DocumentItem::pageId() {
+int DocumentItem::pageId() const {
 	QObject* p = parent();
 
 	if (p == nullptr) {
@@ -118,7 +119,7 @@ int DocumentItem::pageId() {
 	DocumentTemplate* docTemplate = qobject_cast<DocumentTemplate*>(p);
 
 	if (docTemplate != nullptr) {
-		return docTemplate->subitems().indexOf(this);
+        return docTemplate->subitems().indexOf(const_cast<DocumentItem*>(this));
 	}
 
 	DocumentItem* docItem = qobject_cast<DocumentItem*>(p);
@@ -128,6 +129,12 @@ int DocumentItem::pageId() {
 	}
 
 	return -1;
+}
+bool DocumentItem::shouldPaintInPreview() const {
+    if (getType() != Page or pageId() >= 0) {
+        return _showInPreview;
+    }
+    return true;
 }
 
 QList<DocumentItem::Type> DocumentItem::supportedSubTypes() {
@@ -339,9 +346,11 @@ DocumentItem* DocumentItem::buildFromJson(QJsonValue const& value) {
 				   mobj->property(i).type() == QVariant::LongLong or
 				   mobj->property(i).type() == QVariant::ULongLong) {
 			item->setProperty(prop, QVariant(val.toInt()));
-		} else if (mobj->property(i).type() == QVariant::Double) {
-			item->setProperty(prop, QVariant(val.toDouble()));
-		} else {
+        } else if (mobj->property(i).type() == QVariant::Double) {
+            item->setProperty(prop, QVariant(val.toDouble()));
+        } else if (mobj->property(i).type() == QVariant::Bool) {
+            item->setProperty(prop, QVariant(val.toBool()));
+        } else {
 			item->setProperty(prop, QVariant(val.toString()));
 		}
 	}

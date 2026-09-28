@@ -110,6 +110,8 @@ MainWindows::MainWindows(QWidget *parent) :
 
 	_documentTemplateModel = new AutoQuill::DocumentTemplateModel(this);
 	_projectTreeViewWidget->setModel(_documentTemplateModel);
+    _projectTreeViewWidget->header()->setSectionResizeMode(0, QHeaderView::Interactive);
+    _projectTreeViewWidget->header()->setSectionResizeMode(1, QHeaderView::Interactive);
 
 	//setup main widgets
 

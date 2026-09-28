@@ -202,6 +202,10 @@ QModelIndex DocumentTemplateModel::index(int row, int column, const QModelIndex 
 		return QModelIndex();
 	}
 
+    if (parent.column() > 0) {
+        return QModelIndex();
+    }
+
 	if (parent == QModelIndex()) {
 
 		if (row >= _root->subitems().size()) {
@@ -278,7 +282,19 @@ int DocumentTemplateModel::rowCount(const QModelIndex &parent) const {
 
 }
 int DocumentTemplateModel::columnCount(const QModelIndex &parent) const {
-	return 1;
+    return 2;
+}
+
+QVariant DocumentTemplateModel::headerData(int section, Qt::Orientation orientation, int role) const {
+    if (role == Qt::DisplayRole and orientation == Qt::Horizontal) {
+        if (section == 0) {
+            return tr("Name");
+        }
+        if (section == 1) {
+            return tr("Preview");
+        }
+    }
+    return QVariant();
 }
 
 QVariant DocumentTemplateModel::data(const QModelIndex &index, int role) const {
@@ -293,38 +309,61 @@ QVariant DocumentTemplateModel::data(const QModelIndex &index, int role) const {
 		return QVariant();
 	}
 
-	switch (role) {
-	case ItemRole:
-		return QVariant::fromValue(target);
-	case Qt::DisplayRole:
-		return QString("[%1] ").arg(DocumentItem::typeToString(target->getType())) +  target->objectName();
-	case Qt::DecorationRole:
-		switch (target->getType()) {
-		case DocumentItem::Page:
-			return QIcon(":/icons/page.svg");
-		case DocumentItem::Frame:
-			return QIcon(":/icons/frame.svg");
-		case DocumentItem::Text:
-			return QIcon(":/icons/text.svg");
-		case DocumentItem::Image:
-			return QIcon(":/icons/image.svg");
-		case DocumentItem::Condition:
-			return QIcon(":/icons/condition.svg");
-		case DocumentItem::List:
-			return QIcon(":/icons/list.svg");
-		case DocumentItem::Loop:
-			return QIcon(":/icons/loop.svg");
-		case DocumentItem::Plugin:
-			return QIcon(":/icons/plugin.svg");
-		case DocumentItem::Invalid:
-			return QVariant();
-		};
-		break;
-	case Qt::EditRole:
-		return target->objectName();
-	case ItemPageRole:
-		return target->pageId();
-	}
+    int col = index.column();
+
+    if (col == 0) {
+
+        switch (role) {
+        case ItemRole:
+            return QVariant::fromValue(target);
+        case Qt::DisplayRole:
+            return QString("[%1] ").arg(DocumentItem::typeToString(target->getType())) +  target->objectName();
+        case Qt::DecorationRole:
+            switch (target->getType()) {
+            case DocumentItem::Page:
+                return QIcon(":/icons/page.svg");
+            case DocumentItem::Frame:
+                return QIcon(":/icons/frame.svg");
+            case DocumentItem::Text:
+                return QIcon(":/icons/text.svg");
+            case DocumentItem::Image:
+                return QIcon(":/icons/image.svg");
+            case DocumentItem::Condition:
+                return QIcon(":/icons/condition.svg");
+            case DocumentItem::List:
+                return QIcon(":/icons/list.svg");
+            case DocumentItem::Loop:
+                return QIcon(":/icons/loop.svg");
+            case DocumentItem::Plugin:
+                return QIcon(":/icons/plugin.svg");
+            case DocumentItem::Invalid:
+                return QVariant();
+            };
+            break;
+        case Qt::EditRole:
+            return target->objectName();
+        case ItemPageRole:
+            return target->pageId();
+        case ItemDataRole:
+            return QJsonDocument(target->encapsulateToJson().toObject()).toJson();
+        }
+
+    } else if (col == 1) {
+
+        switch (role) {
+        case ItemRole:
+            return QVariant::fromValue(target);
+        case Qt::DisplayRole:
+        case Qt::EditRole:
+            if (target->getType() == DocumentItem::Page or target->pageId() < 0) {
+                return QVariant();
+            }
+            return target->_showInPreview;
+        case ItemPageRole:
+            return target->pageId();
+        }
+
+    }
 
 	return QVariant();
 }
@@ -345,12 +384,35 @@ bool DocumentTemplateModel::setData(const QModelIndex &index, const QVariant &va
 		return false;
 	}
 
-	target->setObjectName(value.toString());
+    int col = index.column();
+
+    if (col == 0) {
+        target->setObjectName(value.toString());
+    } else if (col == 1) {
+        if (target->getType() == DocumentItem::Page or target->pageId() < 0) {
+            return false;
+        }
+        target->setShowInPreview(value.toBool());
+    }
 
 	return true;
 
 }
 Qt::ItemFlags DocumentTemplateModel::flags(const QModelIndex &index) const {
+
+    int col = index.column();
+
+    DocumentItem* target = reinterpret_cast<DocumentItem*>(index.internalPointer());
+
+    if (target == nullptr) {
+        return QAbstractItemModel::flags(index);
+    }
+
+    if (col == 1) {
+        if (target->getType() == DocumentItem::Page or target->pageId() < 0) {
+            return QAbstractItemModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+        }
+    }
 
 	return QAbstractItemModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled | Qt::ItemIsEditable;
 

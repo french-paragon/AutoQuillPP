@@ -128,11 +128,25 @@ public:
     Q_PROPERTY(QString dataKey READ dataKey WRITE setDataKey NOTIFY datakeyChanged)
     Q_PROPERTY(QString data READ data WRITE setData NOTIFY dataChanged)
 
+    Q_PROPERTY(bool showInPreview READ showInPreview WRITE setShowInPreview NOTIFY showInPreviewChanged)
+
 	DocumentItem(Type type = Invalid, QObject* parent = nullptr);
 
     inline Type getType() const {
         return _type;
 	}
+
+    inline bool showInPreview() const {
+        return _showInPreview;
+    }
+
+    inline void setShowInPreview(bool show) {
+        if (_showInPreview == show) {
+            return;
+        }
+        _showInPreview = show;
+        Q_EMIT showInPreviewChanged();
+    }
 
 	inline Direction direction() const {
 		return _direction;
@@ -582,7 +596,8 @@ public:
 		return _items;
 	}
 
-	int pageId();
+    int pageId() const;
+    bool shouldPaintInPreview() const;
 
 	inline QPointF origin() const {
 		switch(_direction) {
@@ -657,6 +672,8 @@ Q_SIGNALS:
     void datakeyChanged();
 	void dataChanged();
 
+    void showInPreviewChanged();
+
 protected:
 
     bool propertyIsStoredForCurrentType(const char* propName) const;
@@ -691,6 +708,8 @@ protected:
 
     QString _data_key;
     QString _data;
+
+    bool _showInPreview;
 
 	QList<DocumentItem*> _items;
 
