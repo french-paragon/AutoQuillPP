@@ -493,7 +493,22 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutCondition(ItemRenderIn
 
 	itemInfos.subitemsRenderInfos.push_back(subItemInfos);
 
-	return layoutItem(*subItemInfos, subPreviousRender, &itemInfos.subitemsRenderInfos);
+    auto itemStatus = layoutItem(*subItemInfos, subPreviousRender, &itemInfos.subitemsRenderInfos);
+
+    QSizeF renderSize(itemInfos.currentSize);
+
+    if (subItemInfos->item->posX() + itemStatus.renderSize.width() > renderSize.width()) {
+        renderSize.rwidth() = std::min(subItemInfos->item->posX() + itemStatus.renderSize.width(), itemInfos.item->maxWidth());
+    }
+
+    if (subItemInfos->item->posY() + itemStatus.renderSize.height() > renderSize.height()) {
+        renderSize.rheight() = std::min(subItemInfos->item->posY() + itemStatus.renderSize.height(), itemInfos.item->maxHeight());
+    }
+
+    itemInfos.currentSize = renderSize;
+    itemStatus.renderSize = renderSize;
+
+    return itemStatus;
 }
 DocumentRenderer::RenderingStatus DocumentRenderer::layoutLoop(ItemRenderInfos& itemInfos, ItemRenderInfos* previousRender) {
 
