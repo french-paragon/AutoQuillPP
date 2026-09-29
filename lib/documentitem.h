@@ -58,16 +58,27 @@ public:
 		ExpandBefore = 1,
 		ExpandAfter = 2,
 		ExpandBoth = 3
-	};
+    };
 
-	enum TextAlign {
-		AlignLeft,
-		AlignRight,
-		AlignCenter,
-		AlignJustify
-	};
+    enum TextAlign {
+        AlignLeft,
+        AlignRight,
+        AlignCenter,
+        AlignJustify
+    };
 
-	Q_ENUM(TextAlign);
+    Q_ENUM(TextAlign);
+
+    enum Align {
+        Left = 1,
+        Right = 2,
+        Center = 3,
+        Top = 4,
+        Bottom = 8,
+        VCenter = 12,
+    };
+
+    Q_ENUM(Align);
 
 	enum TextWeight {
 		Thin = 100,
@@ -117,6 +128,8 @@ public:
 
     Q_PROPERTY(qreal borderWidth READ borderWidth WRITE setBorderWidth NOTIFY borderWidthChanged)
     Q_PROPERTY(QColor borderColor READ borderColor WRITE setBorderColor NOTIFY borderColorChanged)
+
+    Q_PROPERTY(QString align READ alignName WRITE setAlignName NOTIFY alignChanged)
 
     Q_PROPERTY(QColor fillColor READ fillColor WRITE setFillColor NOTIFY fillColorChanged)
 
@@ -473,7 +486,80 @@ public:
 			return "justify";
 		}
 		return "left";
-	}
+    }
+
+    inline int alignFlag() const {
+        return _align_flags;
+    }
+
+    inline void setAlignFlag(int flags) {
+        if (_align_flags != flags) {
+            _align_flags = flags;
+            Q_EMIT alignChanged();
+        }
+    }
+
+    inline QString alignName() const {
+        QString horizontal = "Center";
+        if ((_align_flags & Align::Center) == Align::Center) {
+            horizontal = "Center";
+        } else if (_align_flags & (Align::Left)) {
+            horizontal = "Left";
+        } else if (_align_flags & (Align::Right)) {
+            horizontal = "Right";
+        }
+        QString vertical = "Center";
+        if ((_align_flags & Align::VCenter) == Align::VCenter) {
+            vertical = "Center";
+        } else if (_align_flags & (Align::Top)) {
+            vertical = "Top";
+        } else if (_align_flags & (Align::Bottom)) {
+            vertical = "Bottom";
+        }
+        return horizontal + " " + vertical;
+    }
+
+    inline void setAlignName(QString names) {
+        int alignDefault = Align::Center | Align::VCenter;
+        QStringList split = names.split(" ");
+
+        if (split.size() != 2) {
+            setAlignFlag(alignDefault);
+            return;
+        }
+
+        int horizontal = Align::Center;
+        int vertical = Align::Center;
+
+        QString hStr = split[0].toLower();
+        QString vStr = split[1].toLower();
+
+        if (hStr.endsWith("left")) {
+            horizontal = Align::Left;
+        }
+
+        if (hStr.endsWith("right")) {
+            horizontal = Align::Right;
+        }
+
+        if (hStr.endsWith("center")) {
+            horizontal = Align::Center;
+        }
+
+        if (vStr.endsWith("top")) {
+            vertical = Align::Top;
+        }
+
+        if (vStr.endsWith("bottom")) {
+            vertical = Align::Bottom;
+        }
+
+        if (vStr.endsWith("center")) {
+            vertical = Align::VCenter;
+        }
+
+        setAlignFlag(horizontal | vertical);
+    }
 
 	inline TextAlign textAlign() const {
 		return _text_align;
@@ -660,6 +746,8 @@ Q_SIGNALS:
     void borderWidthChanged();
     void borderColorChanged();
 
+    void alignChanged();
+
     void fillColorChanged();
 
 	void fontNameChanged();
@@ -698,6 +786,8 @@ protected:
 
     qreal _border_width;
     QColor _border_color;
+
+    int _align_flags;
 
     QColor _fill_color;
 

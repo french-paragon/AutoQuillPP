@@ -382,6 +382,32 @@ void MainWindows::refreshPropertiesWidget() {
 
 	}
 
+    //alignement
+    if (type == AutoQuill::DocumentItem::Image) {
+
+
+        QComboBox* alignSelect = new QComboBox(widget);
+
+        alignSelect->addItem(tr("Top Left"), AutoQuill::DocumentItem::Align::Top|AutoQuill::DocumentItem::Align::Left);
+        alignSelect->addItem(tr("Top"), AutoQuill::DocumentItem::Align::Top|AutoQuill::DocumentItem::Align::Center);
+        alignSelect->addItem(tr("Top Right"), AutoQuill::DocumentItem::Align::Top|AutoQuill::DocumentItem::Align::Right);
+        alignSelect->addItem(tr("Left"), AutoQuill::DocumentItem::Align::VCenter|AutoQuill::DocumentItem::Align::Left);
+        alignSelect->addItem(tr("Center"), AutoQuill::DocumentItem::Align::VCenter|AutoQuill::DocumentItem::Align::Center);
+        alignSelect->addItem(tr("Right"), AutoQuill::DocumentItem::Align::VCenter|AutoQuill::DocumentItem::Align::Right);
+        alignSelect->addItem(tr("Bottom Left"), AutoQuill::DocumentItem::Align::Bottom|AutoQuill::DocumentItem::Align::Left);
+        alignSelect->addItem(tr("Bottom"), AutoQuill::DocumentItem::Align::Bottom|AutoQuill::DocumentItem::Align::Center);
+        alignSelect->addItem(tr("Bottom Right"), AutoQuill::DocumentItem::Align::Bottom|AutoQuill::DocumentItem::Align::Right);
+
+        int currentIndex = alignSelect->findData(item->alignFlag());
+        alignSelect->setCurrentIndex(currentIndex);
+
+        connect(alignSelect, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged), item, [item, alignSelect] () {
+            item->setAlignFlag(alignSelect->currentData().toInt());
+        });
+
+        layout->addRow(tr("Alignement"), alignSelect);
+    }
+
 	//layout options
 	AutoQuill::DocumentItem* pitem = item->parentDocumentItem();
 	AutoQuill::DocumentItem::Type pType = (pitem != nullptr) ? pitem->getType() : AutoQuill::DocumentItem::Type::Invalid;

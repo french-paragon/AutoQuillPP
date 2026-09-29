@@ -37,6 +37,7 @@ DocumentItem::DocumentItem(Type type, QObject *parent) :
 	}
 
 	_text_align = AlignLeft;
+    _align_flags = Align::Center | Align::VCenter;
 	_font_weight = Normal;
 	_font_size = 12;
 }
@@ -235,11 +236,21 @@ bool DocumentItem::propertyIsStoredForCurrentType(const char* propName) const {
 
     QString pName(propName);
 
+    if (pName == "showInPreview") {
+        return false; //do not store that one
+    }
+
 	if (const_cast<DocumentItem*>(this)->parentPage() == nullptr) {
 		if (pName == "overflowBehavior") {
 			return false;
 		}
 	}
+
+    if (pName == "align") {
+        if (_type != Image) {
+            return false;
+        }
+    }
 
     switch(_type) {
     case Invalid:

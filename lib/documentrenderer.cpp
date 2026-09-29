@@ -1897,7 +1897,23 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos&
 				QSvgRenderer renderer(path);
 				renderer.setAspectRatioMode(Qt::KeepAspectRatio);
 
-				QSize targetSize = 300./72.*itemInfos.currentSize.toSize();
+                QSize defaultSize = renderer.defaultSize();
+
+                double imgAspectRatio = double(defaultSize.width())/double(defaultSize.height());
+
+                double areaAspectRatio = double(itemInfos.currentSize.width())/double(itemInfos.currentSize.height());
+
+                QSize renderAreaSize;
+                if (areaAspectRatio < imgAspectRatio) {
+                    renderAreaSize.rheight() = itemInfos.currentSize.width()/imgAspectRatio;
+                    renderAreaSize.rwidth() = itemInfos.currentSize.width();
+                }
+                if (areaAspectRatio > imgAspectRatio) {
+                    renderAreaSize.rheight() = itemInfos.currentSize.height();
+                    renderAreaSize.rwidth() = imgAspectRatio*itemInfos.currentSize.height();
+                }
+
+                QSize targetSize = 300./72.*renderAreaSize;
 
 				image = QImage(targetSize, QImage::Format_ARGB32);
 				image.fill(QColor(255,255,255,0));
@@ -1941,7 +1957,14 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos&
 
 		QSize newImSize(renderSize.width(), scale*imSize.height());
 
-		double deltaY = (renderSize.height() - newImSize.height())/2;
+        double deltaY = (renderSize.height() - newImSize.height())/2;
+        if ((itemInfos.item->alignFlag() & DocumentItem::Align::VCenter) == DocumentItem::Align::VCenter) {
+            deltaY = (renderSize.height() - newImSize.height())/2;
+        } else if (itemInfos.item->alignFlag() & DocumentItem::Align::Top) {
+            deltaY = 0;
+        } else if (itemInfos.item->alignFlag() & DocumentItem::Align::VCenter) {
+            deltaY = renderSize.height() - newImSize.height();
+        }
 
 		origin.ry() += deltaY;
 		posDelta.rheight() += deltaY;
@@ -1953,6 +1976,13 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderImage(ItemRenderInfos&
 		QSize newImSize(scale*imSize.width(), renderSize.height());
 
 		double deltaX = (renderSize.width() - newImSize.width())/2;
+        if ((itemInfos.item->alignFlag() & DocumentItem::Align::Center) == DocumentItem::Align::Center) {
+            deltaX = (renderSize.width() - newImSize.width())/2;
+        } else if (itemInfos.item->alignFlag() & DocumentItem::Align::Left) {
+            deltaX = 0;
+        } else if (itemInfos.item->alignFlag() & DocumentItem::Align::Right) {
+            deltaX = renderSize.width() - newImSize.width();
+        }
 
 		origin.rx() += deltaX;
 		posDelta.rwidth() += deltaX;
