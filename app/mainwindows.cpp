@@ -114,6 +114,19 @@ MainWindows::MainWindows(QWidget *parent) :
     _projectTreeViewWidget->header()->setSectionResizeMode(0, QHeaderView::Interactive);
     _projectTreeViewWidget->header()->setSectionResizeMode(1, QHeaderView::Interactive);
 
+    connect(_projectTreeViewWidget, &QTreeView::clicked, _documentTemplateModel, [this] (QModelIndex const& idx) {
+        if (idx.column() != 1) {
+            return;
+        }
+
+        if (_documentTemplateModel->flags(idx) & Qt::ItemIsEditable) {
+            QVariant data = idx.data(Qt::DisplayRole);
+            if (data != QVariant()) {
+                _documentTemplateModel->setData(idx, !data.toBool());
+            }
+        }
+    });
+
 	//setup main widgets
 
 	_docPreviewWidget = new DocumentPreviewWidget(this);
