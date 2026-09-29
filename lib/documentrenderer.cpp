@@ -1357,8 +1357,12 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	QSizeF renderSize(itemInfos.item->initialSize());
 
 	QFont font("serif", 12);
-	font.setFamily(itemInfos.item->fontName());
-	font.setPointSizeF(itemInfos.item->fontSize());
+    font.setFamily(itemInfos.item->fontName());
+    font.setPointSizeF(itemInfos.item->fontSize());
+    if (itemInfos.item->fontWeight() >= DocumentItem::TextWeight::Bold) {
+        font.setBold(true);
+    }
+    //font.setWeight(itemInfos.item->fontWeight());
 	_painter->setFont(font);
 
     Qt::Alignment alignement = Qt::AlignLeft;
@@ -1800,6 +1804,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 	QFont font("serif", 12);
 	font.setFamily(itemInfos.item->fontName());
 	font.setPointSizeF(itemInfos.item->fontSize());
+    if (itemInfos.item->fontWeight() >= DocumentItem::TextWeight::Bold) {
+        font.setBold(true);
+    }
+    //font.setWeight(itemInfos.item->fontWeight());
 	_painter->setFont(font);
 
     Qt::Alignment alignement = Qt::AlignLeft;
