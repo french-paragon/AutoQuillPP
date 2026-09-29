@@ -185,20 +185,23 @@ protected :
 	RenderingStatus renderPlugin(ItemRenderInfos& itemInfos);
 
 	QPainter* _painter;
-	QPdfWriter* _writer;
-	int _pagesWritten;
-	int _pagesToWrite;
+    QPdfWriter* _writer;
 
 	DocumentTemplate const* _docTemplate;
 
 	RenderPluginManager const* _pluginManager;
-	RenderContext _renderContext;
+    RenderContext _renderContext;
+    int _pagesWritten;
+    int _pageId;
+    int _nPages;
 };
 
 struct ItemRenderInfos {
 
     ItemRenderInfos() {
         toRender = true;
+        pageNum = -1;
+        nPages = -1;
     }
 
     ~ItemRenderInfos() {
@@ -218,6 +221,8 @@ struct ItemRenderInfos {
     bool rendered;
     QVariant continuationIndex;
     QVector<ItemRenderInfos*> subitemsRenderInfos;
+    int pageNum;
+    int nPages;
 
     /*!
          * \brief translate translate the current item, and all subitems

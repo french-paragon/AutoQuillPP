@@ -105,9 +105,10 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 		delete _painter;
 	}
 
-	_painter = new QPainter(_writer);
-	_pagesToWrite = 0;
+    _painter = new QPainter(_writer);
 	_pagesWritten = 0;
+    _nPages = 0;
+    _pageId = 0;
 
 	RenderingStatus status{Success, ""};
 
@@ -200,8 +201,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(QVector<ItemRenderInf
 	}
 
 	_painter = new QPainter(_writer);
-	_pagesToWrite = 0;
-	_pagesWritten = 0;
+    _pageId = 0;
+    _nPages = layout.size();
+    _pagesWritten = 0;
 
 	RenderingStatus status{Success, ""};
 
@@ -320,6 +322,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutDocument(QVector<ItemR
 	}
 
 	RenderingStatus status{Success, ""};
+
+    _pageId = 0;
+    _nPages = 0;
 
 	for (DocumentItem* item : _docTemplate->subitems()) {
 
@@ -888,8 +893,11 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutPage(ItemRenderInfos& 
             }
 		}
 
-		_pagesToWrite++;
+        _pageId++;
+        _nPages++;
 		isFirst = false;
+
+        currentPageInfos->pageNum = _pageId;
 
 		if (targetItemPool == nullptr) {
 			break; //impossible to add more pages if no targetItemPool provided
@@ -1308,6 +1316,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 		}
 	}
 
+    itemInfos.currentSize = renderSize;
 	status.renderSize = renderSize;
 
 	_renderContext = oldContext;
@@ -1341,6 +1350,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 	} else {
 		text = itemInfos.item->data();
 	}
+
+    text = text.replace("%pagenum", QString("%1").arg(_pageId));
+    text = text.replace("%npages", QString("%1").arg(_nPages));
 
 	QPointF origin = _renderContext.origin + itemInfos.item->origin();
 
@@ -1669,6 +1681,16 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderPage(ItemRenderInfos& 
 		return RenderingStatus{MissingModel, QObject::tr("Invalid item requested!")};
 	}
 
+    _pageId++;
+
+    if (itemInfos.pageNum >= 0) {
+        _pageId = itemInfos.pageNum;
+    }
+
+    if (itemInfos.nPages >= 0) {
+        _nPages = itemInfos.nPages;
+    }
+
 	QPageSize pageSize(itemInfos.currentSize, QPageSize::Unit::Point);
 	QPageLayout layout;
 	layout.setPageSize(pageSize);
@@ -1730,7 +1752,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderFrame(ItemRenderInfos&
 
 	RenderingStatus status{Success, ""};
 
-	QRectF rect(itemInfos.currentOrigin, itemInfos.currentSize);
+    QRectF rect(itemInfos.currentOrigin, itemInfos.currentSize);
 
 	if (itemInfos.item->fillColor().isValid()) {
 		_painter->fillRect(rect, itemInfos.item->fillColor());
@@ -1796,6 +1818,9 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 	} else {
 		text = itemInfos.item->data();
 	}
+
+    text = text.replace("%pagenum", QString("%1").arg(_pageId));
+    text = text.replace("%npages", QString("%1").arg(_nPages));
 
 	QPointF origin = itemInfos.currentOrigin;
 
