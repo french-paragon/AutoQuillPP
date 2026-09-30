@@ -97,7 +97,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::render(DocumentDataInterface
 	}
 
 	_writer = new QPdfWriter(device);
-	_writer->setResolution(72);
+    _writer->setResolution(72);
 	_writer->setTitle(_docTemplate->objectName());
 	_writer->setPageMargins(QMarginsF(0,0,0,0));
 
@@ -1262,12 +1262,16 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutFrame(ItemRenderInfos&
 
 	itemInfos.currentOrigin = origin;
 
+    QSizeF previousBound = oldContext.maxRegion;
+    previousBound.rwidth() -= itemInfos.item->origin().x();
+    previousBound.rheight() -= itemInfos.item->origin().y();
+
 	QSizeF renderSize(itemInfos.item->initialSize());
     _renderContext = RenderContext{.direction=itemInfos.item->direction(),
             .origin=origin,
             .region=itemInfos.item->initialSize(),
-            .maxRegion=itemInfos.item->maxSize(),
-                                   .willMovePageIfOverflow = false};
+            .maxRegion=itemInfos.item->maxSize().boundedTo(previousBound),
+                                   .willMovePageIfOverflow = oldContext.willMovePageIfOverflow};
 
 	RenderingStatus status{Success, ""};
 
@@ -1411,7 +1415,12 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
 
     int flags = alignement | Qt::TextWordWrap;
 
-	QRectF rectangle = QRectF(origin, renderSize);
+    QSizeF outBound = _renderContext.maxRegion;
+    outBound.rwidth() -= itemInfos.item->posX();
+    outBound.rheight() -= itemInfos.item->posY();
+    QSizeF maxRenderSize(itemInfos.item->maxSize().boundedTo(outBound));
+
+    QRectF rectangle = QRectF(origin, renderSize.boundedTo(maxRenderSize));
     QFontMetricsF fontMetric(font);
 
     qreal lineWidth = rectangle.width();
@@ -1449,9 +1458,8 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
     RenderingStatus status{Success, "", renderSize};
 
 	if (boundingRect.width() > rectangle.width() or boundingRect.height() > rectangle.height()) {
-		//in can the initial size is not enough
+        //in can the initial size is not enough
 
-		QSizeF maxRenderSize(itemInfos.item->maxSize());
         QRectF rectangle = QRectF(origin, maxRenderSize);
 
         lineWidth = rectangle.width();
@@ -1486,13 +1494,14 @@ DocumentRenderer::RenderingStatus DocumentRenderer::layoutText(ItemRenderInfos& 
             } else { //else record only a warning, we want to see the document for debugging purposes
                 status.warnings << QObject::tr("Text from text block %1 overflow, render anyway").arg(itemInfos.item->objectName());
             }
-		} else {
-			status.renderSize = boundingRect.size();
+        } else {
+            status.renderSize = boundingRect.size();
 		}
 	}
 
 	itemInfos.layoutStatus = status.status;
-	itemInfos.currentSize = status.renderSize;
+    itemInfos.currentSize = status.renderSize;
+
 	return status;
 
 }
@@ -1916,7 +1925,18 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
         //should not occur if layout was done properly
 		status.status = MissingSpace;
 		status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
-	}
+    }
+
+#ifndef DNDEBUG //draw region in case this is a debug build
+    QPen borderPen;
+    borderPen.setColor(QColor(255,245,215));
+    borderPen.setWidthF(1);
+    borderPen.setStyle(Qt::SolidLine);
+    QPen oldPen = _painter->pen();
+    _painter->setPen(borderPen);
+    _painter->drawRect(boundingRect);
+    _painter->setPen(oldPen);
+#endif
 
 	return status;
 
