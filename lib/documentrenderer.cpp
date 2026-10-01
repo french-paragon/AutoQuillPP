@@ -1927,7 +1927,7 @@ DocumentRenderer::RenderingStatus DocumentRenderer::renderText(ItemRenderInfos& 
 		status.message = QObject::tr("Text from text block %1 overflow").arg(itemInfos.item->objectName());
     }
 
-#ifndef DNDEBUG //draw region in case this is a debug build
+#ifndef NDEBUG //draw region in case this is a debug build
     QPen borderPen;
     borderPen.setColor(QColor(255,245,215));
     borderPen.setWidthF(1);
